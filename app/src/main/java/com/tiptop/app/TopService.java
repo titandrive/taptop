@@ -7,6 +7,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.graphics.Color;
+import android.graphics.Rect;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.os.Handler;
@@ -31,6 +32,7 @@ public class TopService extends AccessibilityService {
     private final Handler handler = new Handler(Looper.getMainLooper());
     private boolean scrolling;
     private int steps;
+    private String scrollPackage;
     private final BroadcastReceiver update = new BroadcastReceiver() {
         @Override public void onReceive(Context context, Intent intent) { showBar(); }
     };
@@ -82,9 +84,11 @@ public class TopService extends AccessibilityService {
     }
 
     private void scrollToTop() {
-        if (scrolling) return;
+        // A second tap starts over, which also lets the user recover if an app changes lists.
+        handler.removeCallbacksAndMessages(null);
         scrolling = true;
         steps = 0;
+        scrollPackage = null;
         scrollStep();
     }
 
@@ -92,43 +96,67 @@ public class TopService extends AccessibilityService {
         if (!scrolling) return;
         AccessibilityNodeInfo target = findScrollable();
         if (target == null) { scrolling = false; return; }
+        String targetPackage = String.valueOf(target.getPackageName());
+        if (scrollPackage != null && !scrollPackage.equals(targetPackage)) {
+            scrolling = false;
+            return;
+        }
+        scrollPackage = targetPackage;
         if (steps == 0 && supports(target, AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_TO_POSITION.getId())) {
             Bundle args = new Bundle();
             args.putInt(AccessibilityNodeInfo.ACTION_ARGUMENT_ROW_INT, 0);
             args.putInt(AccessibilityNodeInfo.ACTION_ARGUMENT_COLUMN_INT, 0);
+            // Some apps return true after moving only partway. Check with backward
+            // actions after the list has had time to process this request.
             if (target.performAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_TO_POSITION.getId(), args)) {
-                scrolling = false;
+                steps++;
+                handler.postDelayed(this::scrollStep, 220);
                 return;
             }
         }
-        if (steps++ >= 40 || !target.performAction(AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD)) {
+        if (steps++ >= 80 || !target.performAction(AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD)) {
             scrolling = false;
             return;
         }
-        handler.postDelayed(this::scrollStep, 75);
+        // Waiting between requests avoids dropping actions during scroll animation.
+        handler.postDelayed(this::scrollStep, 220);
     }
 
     private AccessibilityNodeInfo findScrollable() {
         List<AccessibilityWindowInfo> all = getWindows();
         if (all == null) return null;
+        AccessibilityWindowInfo chosen = null;
         for (AccessibilityWindowInfo window : all) {
             if (window.getType() != AccessibilityWindowInfo.TYPE_APPLICATION) continue;
             AccessibilityNodeInfo root = window.getRoot();
             if (root == null || getPackageName().contentEquals(root.getPackageName())) continue;
-            ArrayDeque<AccessibilityNodeInfo> queue = new ArrayDeque<>();
-            queue.add(root);
-            AccessibilityNodeInfo best = null;
-            while (!queue.isEmpty()) {
-                AccessibilityNodeInfo node = queue.removeFirst();
-                if (node.isVisibleToUser() && (node.isScrollable() || supports(node, AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD))) best = node;
-                for (int i = 0; i < node.getChildCount(); i++) {
-                    AccessibilityNodeInfo child = node.getChild(i);
-                    if (child != null) queue.addLast(child);
-                }
-            }
-            if (best != null) return best;
+            if (window.isActive()) { chosen = window; break; }
+            if (chosen == null || window.isFocused()) chosen = window;
         }
-        return null;
+        if (chosen == null) return null;
+        AccessibilityNodeInfo root = chosen.getRoot();
+        if (root == null) return null;
+        ArrayDeque<AccessibilityNodeInfo> queue = new ArrayDeque<>();
+        queue.add(root);
+        AccessibilityNodeInfo best = null;
+        long bestArea = -1;
+        Rect bounds = new Rect();
+        while (!queue.isEmpty()) {
+            AccessibilityNodeInfo node = queue.removeFirst();
+            if (!node.isVisibleToUser()) continue;
+            node.getBoundsInScreen(bounds);
+            long area = (long) bounds.width() * bounds.height();
+            if ((node.isScrollable() || supports(node, AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD))
+                    && bounds.height() > bounds.width() / 2 && area > bestArea) {
+                best = node;
+                bestArea = area;
+            }
+            for (int i = 0; i < node.getChildCount(); i++) {
+                AccessibilityNodeInfo child = node.getChild(i);
+                if (child != null) queue.addLast(child);
+            }
+        }
+        return best;
     }
 
     private boolean supports(AccessibilityNodeInfo node, int id) {
