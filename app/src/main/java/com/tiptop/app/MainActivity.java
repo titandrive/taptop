@@ -45,6 +45,12 @@ public class MainActivity extends Activity {
         enabled.setChecked(prefs.getBoolean("enabled", true));
         enabled.setOnCheckedChangeListener((button, checked) -> save("enabled", checked));
         content.addView(enabled);
+        Switch legacySwipes = new Switch(this);
+        legacySwipes.setText("Use repeated swipes when direct scroll is unavailable");
+        legacySwipes.setTextColor(ink);
+        legacySwipes.setChecked(prefs.getBoolean("legacy_swipes", true));
+        legacySwipes.setOnCheckedChangeListener((button, checked) -> save("legacy_swipes", checked));
+        content.addView(legacySwipes);
         speedSlider();
         slider("Width", "width", 40, 240, 100);
         slider("Height", "height", 24, 80, 36);
@@ -59,7 +65,7 @@ public class MainActivity extends Activity {
             row.addView(button, new LinearLayout.LayoutParams(0, dp(52), 1));
         }
         content.addView(row);
-        label("Some apps do not expose scroll controls to Android accessibility. The tap bar will have no effect in those lists.", 14, false);
+        label("Native smooth scrolling is used when the list supports it. Other lists jump directly to the top if they expose a position action. Lists without either action use repeated swipes unless you turn that fallback off.", 14, false);
     }
 
     @Override protected void onResume() {

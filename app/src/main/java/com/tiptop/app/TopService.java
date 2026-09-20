@@ -125,6 +125,15 @@ public class TopService extends AccessibilityService {
             // Leave the screen touchable so a normal touch can cancel its animation.
             if (target.performAction(AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD, args)) return;
         }
+        if (target != null && supports(target,
+                AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_TO_POSITION.getId())) {
+            Bundle args = new Bundle();
+            args.putInt(AccessibilityNodeInfo.ACTION_ARGUMENT_ROW_INT, 0);
+            args.putInt(AccessibilityNodeInfo.ACTION_ARGUMENT_COLUMN_INT, 0);
+            if (target.performAction(
+                    AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_TO_POSITION.getId(), args)) return;
+        }
+        if (!prefs.getBoolean("legacy_swipes", true)) return;
         scrolling = true;
         if (bar != null) bar.getBackground().setTint(Color.rgb(220, 64, 64));
         steps = 0;
