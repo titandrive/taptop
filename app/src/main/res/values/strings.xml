@@ -1,0 +1,3 @@
+<resources>
+    <string name="service_description">Adds a small tap target near the top of the screen. When tapped, TipTop asks the current app to scroll its list to the beginning. TipTop does not save screen content or use the internet.</string>
+</resources>
