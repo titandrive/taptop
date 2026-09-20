@@ -88,10 +88,10 @@ public class MainActivity extends Activity {
         SeekBar bar = new SeekBar(this);
         bar.setMax(SPEED_LABELS.length - 1);
         bar.setProgress(Math.max(0, Math.min(SPEED_LABELS.length - 1, prefs.getInt("speed", 3))));
-        caption.setText("Scroll speed: " + SPEED_LABELS[bar.getProgress()]);
+        caption.setText("Fallback swipe speed: " + SPEED_LABELS[bar.getProgress()]);
         bar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             public void onProgressChanged(SeekBar seek, int progress, boolean fromUser) {
-                caption.setText("Scroll speed: " + SPEED_LABELS[progress]);
+                caption.setText("Fallback swipe speed: " + SPEED_LABELS[progress]);
                 if (fromUser) prefs.edit().putInt("speed", progress).apply();
             }
             public void onStartTrackingTouch(SeekBar seek) {}

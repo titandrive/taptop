@@ -115,6 +115,16 @@ public class TopService extends AccessibilityService {
     private void scrollToTop() {
         if (scrolling) { stopScroll(); return; }
         stopScroll();
+        AccessibilityNodeInfo target = findScrollable();
+        if (target != null && supports(target, AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD)
+                && supportsGranularScroll(target)) {
+            Bundle args = new Bundle();
+            args.putFloat("android.view.accessibility.action.ARGUMENT_SCROLL_AMOUNT_FLOAT",
+                    Float.POSITIVE_INFINITY);
+            // RecyclerView handles this as one native smoothScrollToPosition(0).
+            // Leave the screen touchable so a normal touch can cancel its animation.
+            if (target.performAction(AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD, args)) return;
+        }
         scrolling = true;
         if (bar != null) bar.getBackground().setTint(Color.rgb(220, 64, 64));
         steps = 0;
@@ -291,6 +301,15 @@ public class TopService extends AccessibilityService {
     private boolean supports(AccessibilityNodeInfo node, int id) {
         for (AccessibilityNodeInfo.AccessibilityAction action : node.getActionList()) if (action.getId() == id) return true;
         return false;
+    }
+    private boolean supportsGranularScroll(AccessibilityNodeInfo node) {
+        if (android.os.Build.VERSION.SDK_INT < 35) return false;
+        try {
+            return (Boolean) AccessibilityNodeInfo.class
+                    .getMethod("isGranularScrollingSupported").invoke(node);
+        } catch (ReflectiveOperationException e) {
+            return false;
+        }
     }
     private int statusBarHeight() {
         int id = getResources().getIdentifier("status_bar_height", "dimen", "android");
