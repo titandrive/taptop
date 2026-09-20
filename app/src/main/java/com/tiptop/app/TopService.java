@@ -137,23 +137,36 @@ public class TopService extends AccessibilityService {
         AccessibilityNodeInfo root = chosen.getRoot();
         if (root == null) return null;
         ArrayDeque<AccessibilityNodeInfo> queue = new ArrayDeque<>();
+        ArrayDeque<Integer> depths = new ArrayDeque<>();
         queue.add(root);
+        depths.add(0);
         AccessibilityNodeInfo best = null;
+        int bestDepth = -1;
         long bestArea = -1;
         Rect bounds = new Rect();
+        long screenArea = (long) getResources().getDisplayMetrics().widthPixels
+                * getResources().getDisplayMetrics().heightPixels;
         while (!queue.isEmpty()) {
             AccessibilityNodeInfo node = queue.removeFirst();
+            int depth = depths.removeFirst();
             if (!node.isVisibleToUser()) continue;
             node.getBoundsInScreen(bounds);
             long area = (long) bounds.width() * bounds.height();
+            // Prefer the substantial inner list over a parent that only moves
+            // a toolbar or header. Ignore small controls such as spinners.
             if ((node.isScrollable() || supports(node, AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD))
-                    && bounds.height() > bounds.width() / 2 && area > bestArea) {
+                    && bounds.height() > bounds.width() / 2 && area >= screenArea / 6
+                    && (depth > bestDepth || (depth == bestDepth && area > bestArea))) {
                 best = node;
+                bestDepth = depth;
                 bestArea = area;
             }
             for (int i = 0; i < node.getChildCount(); i++) {
                 AccessibilityNodeInfo child = node.getChild(i);
-                if (child != null) queue.addLast(child);
+                if (child != null) {
+                    queue.addLast(child);
+                    depths.addLast(depth + 1);
+                }
             }
         }
         return best;
