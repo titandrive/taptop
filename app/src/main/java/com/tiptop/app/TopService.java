@@ -14,7 +14,9 @@ import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
-
+import android.os.VibrationEffect;
+import android.os.Vibrator;
+import android.os.VibratorManager;
 import android.view.Gravity;
 import android.view.HapticFeedbackConstants;
 import android.view.MotionEvent;
@@ -35,12 +37,16 @@ public class TopService extends AccessibilityService {
     private View leftStopRegion;
     private View rightStopRegion;
     private SharedPreferences prefs;
+    private static final int[] SWIPE_DURATION_MS = {700, 520, 380, 240, 170};
+    private static final int[] PAUSE_MS = {70, 60, 40, 20, 10};
     private final Handler handler = new Handler(Looper.getMainLooper());
     private boolean scrolling;
     private int steps;
+    private int missingActionChecks;
     private int runId;
     private boolean consumingStopTouch;
     private String scrollPackage;
+    private String scrollClass;
     private final BroadcastReceiver update = new BroadcastReceiver() {
         @Override public void onReceive(Context context, Intent intent) { showBar(); }
     };
@@ -75,15 +81,13 @@ public class TopService extends AccessibilityService {
         view.setBackground(background);
         view.setAlpha(prefs.getInt("opacity", 70) / 100f);
         view.setContentDescription("Scroll to top");
-        view.setOnClickListener(v -> { v.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY); scrollToTop(); });
+        view.setOnClickListener(v -> scrollToTop());
         final boolean[] stoppedOnDown = {false};
         view.setOnTouchListener((v, event) -> {
             if (event.getActionMasked() == MotionEvent.ACTION_DOWN) {
+                playTapFeedback(v);
                 stoppedOnDown[0] = scrolling;
-                if (stoppedOnDown[0]) {
-                    v.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY);
-                    stopScroll();
-                }
+                if (stoppedOnDown[0]) stopScroll();
                 return true;
             }
             if (event.getActionMasked() == MotionEvent.ACTION_UP) {
@@ -114,7 +118,9 @@ public class TopService extends AccessibilityService {
         scrolling = true;
         if (bar != null) bar.getBackground().setTint(Color.rgb(220, 64, 64));
         steps = 0;
+        missingActionChecks = 0;
         scrollPackage = null;
+        scrollClass = null;
         swipeStep(runId);
     }
 
@@ -128,35 +134,62 @@ public class TopService extends AccessibilityService {
 
     private void swipeStep(int id) {
         if (!scrolling || id != runId) return;
+        if (steps >= 200) { stopScroll(); return; }
         AccessibilityNodeInfo target = findScrollable();
-        if (target == null || steps >= 60) { stopScroll(); return; }
+        if (target == null) {
+            if (scrollClass == null) stopScroll(); else retryMissingAction(id);
+            return;
+        }
         String targetPackage = String.valueOf(target.getPackageName());
         if (scrollPackage != null && !scrollPackage.equals(targetPackage)) { stopScroll(); return; }
         scrollPackage = targetPackage;
-        if (!supports(target, AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD)) { stopScroll(); return; }
+        if (!supports(target, AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD)) {
+            retryMissingAction(id);
+            return;
+        }
+        missingActionChecks = 0;
+        scrollClass = String.valueOf(target.getClassName());
         Rect bounds = new Rect();
         target.getBoundsInScreen(bounds);
         if (bounds.height() < dp(180)) { stopScroll(); return; }
         float x = bounds.centerX();
-        float startY = bounds.top + bounds.height() * .22f;
-        float endY = bounds.bottom - bounds.height() * .12f;
+        float startY = bounds.top + bounds.height() * .12f;
+        float endY = bounds.bottom - bounds.height() * .08f;
         if (leftStopRegion == null) showStopRegions(x);
         Path path = new Path();
         path.moveTo(x, startY);
         path.lineTo(x, endY);
+        int speed = Math.max(0, Math.min(SWIPE_DURATION_MS.length - 1, prefs.getInt("speed", 3)));
+        int pause = PAUSE_MS[speed];
         GestureDescription gesture = new GestureDescription.Builder()
-                .addStroke(new GestureDescription.StrokeDescription(path, 0, 520))
+                .addStroke(new GestureDescription.StrokeDescription(path, 0, SWIPE_DURATION_MS[speed]))
                 .build();
         steps++;
         if (!dispatchGesture(gesture, new GestureResultCallback() {
             @Override public void onCompleted(GestureDescription description) {
                 if (id != runId) return;
-                        handler.postDelayed(() -> swipeStep(id), 60);
+                handler.postDelayed(() -> swipeStep(id), pause);
             }
             @Override public void onCancelled(GestureDescription description) {
                 if (id == runId) { stopScroll(); }
             }
         }, handler)) { stopScroll(); }
+    }
+
+    private void retryMissingAction(int id) {
+        if (++missingActionChecks >= 8) stopScroll();
+        else handler.postDelayed(() -> swipeStep(id), 120);
+    }
+
+    private void playTapFeedback(View view) {
+        Vibrator vibrator;
+        if (android.os.Build.VERSION.SDK_INT >= 31) {
+            VibratorManager manager = (VibratorManager) getSystemService(VIBRATOR_MANAGER_SERVICE);
+            vibrator = manager == null ? null : manager.getDefaultVibrator();
+        } else vibrator = (Vibrator) getSystemService(VIBRATOR_SERVICE);
+        if (vibrator != null && vibrator.hasVibrator() && android.os.Build.VERSION.SDK_INT >= 29)
+            vibrator.vibrate(VibrationEffect.createPredefined(VibrationEffect.EFFECT_CLICK));
+        else view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY);
     }
 
     private void showStopRegions(float swipeX) {
@@ -227,12 +260,14 @@ public class TopService extends AccessibilityService {
             AccessibilityNodeInfo node = queue.removeFirst();
             int depth = depths.removeFirst();
             if (!node.isVisibleToUser()) continue;
+            boolean matchesCurrentList = scrollClass == null
+                    || scrollClass.equals(String.valueOf(node.getClassName()));
             node.getBoundsInScreen(bounds);
             long area = (long) bounds.width() * bounds.height();
             // Prefer the substantial inner list over a parent that only moves
             // a toolbar or header. Ignore small controls such as spinners.
             boolean hasBackwardAction = supports(node, AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD);
-            if ((node.isScrollable() || hasBackwardAction)
+            if (matchesCurrentList && (node.isScrollable() || hasBackwardAction)
                     && bounds.height() > bounds.width() / 2 && area >= screenArea / 6
                     && ((!bestHasBackwardAction && hasBackwardAction)
                         || (bestHasBackwardAction == hasBackwardAction

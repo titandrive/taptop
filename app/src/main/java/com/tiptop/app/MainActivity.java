@@ -15,6 +15,7 @@ import android.widget.Switch;
 import android.widget.TextView;
 
 public class MainActivity extends Activity {
+    private static final String[] SPEED_LABELS = {"Gentle", "Smooth", "Balanced", "Fast", "Turbo"};
     private SharedPreferences prefs;
     private TextView status;
     private LinearLayout content;
@@ -44,6 +45,7 @@ public class MainActivity extends Activity {
         enabled.setChecked(prefs.getBoolean("enabled", true));
         enabled.setOnCheckedChangeListener((button, checked) -> save("enabled", checked));
         content.addView(enabled);
+        speedSlider();
         slider("Width", "width", 40, 240, 100);
         slider("Height", "height", 24, 80, 36);
         slider("Distance from screen top", "offset", 0, 80, 8);
@@ -79,6 +81,23 @@ public class MainActivity extends Activity {
         view.setPadding(0, dp(8), 0, dp(8));
         content.addView(view);
         return view;
+    }
+
+    private void speedSlider() {
+        TextView caption = label("", 18, true);
+        SeekBar bar = new SeekBar(this);
+        bar.setMax(SPEED_LABELS.length - 1);
+        bar.setProgress(Math.max(0, Math.min(SPEED_LABELS.length - 1, prefs.getInt("speed", 3))));
+        caption.setText("Scroll speed: " + SPEED_LABELS[bar.getProgress()]);
+        bar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            public void onProgressChanged(SeekBar seek, int progress, boolean fromUser) {
+                caption.setText("Scroll speed: " + SPEED_LABELS[progress]);
+                if (fromUser) prefs.edit().putInt("speed", progress).apply();
+            }
+            public void onStartTrackingTouch(SeekBar seek) {}
+            public void onStopTrackingTouch(SeekBar seek) {}
+        });
+        content.addView(bar);
     }
 
     private void slider(String title, String key, int min, int max, int initial) {
