@@ -373,6 +373,7 @@ public class TopService extends AccessibilityService {
     }
 
     private void playTapFeedback(View view) {
+        if (!prefs.getBoolean("haptics", true)) return;
         Vibrator vibrator;
         if (android.os.Build.VERSION.SDK_INT >= 31) {
             VibratorManager manager = (VibratorManager) getSystemService(VIBRATOR_MANAGER_SERVICE);
