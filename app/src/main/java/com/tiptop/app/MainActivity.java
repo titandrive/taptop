@@ -1,12 +1,14 @@
 package com.tiptop.app;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.ComponentName;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.res.ColorStateList;
-import android.content.res.Configuration;
 import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.DashPathEffect;
 import android.graphics.Paint;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
@@ -16,6 +18,7 @@ import android.provider.Settings;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.LinearLayout;
+import android.widget.FrameLayout;
 import android.widget.ScrollView;
 import android.widget.SeekBar;
 import android.widget.Switch;
@@ -25,11 +28,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class MainActivity extends Activity {
+    static boolean foreground;
     private static final String[] SPEED_LABELS = {"Slowest", "Slow", "Medium", "Fast", "Maximum"};
     private SharedPreferences prefs;
     private TextView status, statusDetail, access;
     private LinearLayout content;
-    private LinearLayout barControls;
+    private LinearLayout barAppearance;
     private ScrollView scroll;
     private BarPreview preview;
     private final List<Runnable> refreshBarSliders = new ArrayList<>();
@@ -39,10 +43,7 @@ public class MainActivity extends Activity {
 
     @Override public void onCreate(Bundle state) {
         prefs = getSharedPreferences("settings", MODE_PRIVATE);
-        String theme = prefs.getString("theme", "System");
-        dark = theme.equals("Dark") || (theme.equals("System")
-                && (getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK)
-                == Configuration.UI_MODE_NIGHT_YES);
+        dark = ThemeColors.isDark(prefs, getResources().getConfiguration());
         setTheme(dark ? R.style.Theme_TipTop_Dark : R.style.Theme_TipTop_Light);
         super.onCreate(state);
         // Official Catppuccin Macchiato / Latte palette.
@@ -51,7 +52,7 @@ public class MainActivity extends Activity {
         surface = dark ? 0xff363a4f : 0xffccd0da;
         ink = dark ? 0xffcad3f5 : 0xff4c4f69;
         muted = dark ? 0xffa5adcb : 0xff6c6f85;
-        accent = dark ? 0xffc6a0f6 : 0xff8839ef;
+        accent = ThemeColors.accent(dark);
         green = dark ? 0xffa6da95 : 0xff40a02b;
         getWindow().setStatusBarColor(base);
         getWindow().setNavigationBarColor(base);
@@ -74,7 +75,7 @@ public class MainActivity extends Activity {
 
         section("SCROLLING");
         LinearLayout behavior = card();
-        toggle(behavior, "Haptic feedback", "A gentle click when you tap the bar.", "haptics", true);
+        toggle(behavior, "Haptic feedback", "A gentle click when you tap the area.", "haptics", true);
         divider(behavior);
         slider(behavior, "Scroll speed", "scroll_speed", 0, 4, 4);
         addText(behavior, "Touch the screen to stop scrolling. Speed changes apply on your next tap.", 13, muted, false, 0, 4);
@@ -85,16 +86,10 @@ public class MainActivity extends Activity {
         addText(appearance, "Latte by day. Macchiato by night.", 13, muted, false, 0, 14);
         choices(appearance, "theme", new String[]{"System", "Light", "Dark"}, "System");
 
-        section("TAP BAR");
-        LinearLayout barCard = card();
-        toggle(barCard, "Show tap bar", "One tap to head back to the top.", "enabled", true);
-        LinearLayout bar = column();
-        barControls = bar;
-        barCard.addView(bar, new LinearLayout.LayoutParams(-1, -2));
-        bar.setVisibility(prefs.getBoolean("enabled", true) ? View.VISIBLE : View.GONE);
-        divider(bar);
+        section("TAP AREA");
+        LinearLayout bar = card();
         addText(bar, "Make it yours", 19, ink, true, 0, 4);
-        addText(bar, "Adjust the size and placement to suit your thumb.", 13, muted, false, 0, 16);
+        addText(bar, "Use the dotted outline on your screen to adjust the tap area. It stays active when the bar is hidden.", 13, muted, false, 0, 16);
         preview = new BarPreview();
         bar.addView(preview, new LinearLayout.LayoutParams(-1, dp(132)));
         addText(bar, "Position", 15, ink, true, 18, 10);
@@ -102,9 +97,15 @@ public class MainActivity extends Activity {
         slider(bar, "Width", "width", 40, 240, 100);
         slider(bar, "Height", "height", 24, 80, 36);
         slider(bar, "Top offset", "offset", 0, 80, 8);
-        slider(bar, "Opacity", "opacity", 15, 100, 70);
+        divider(bar);
+        toggle(bar, "Show tap bar", "Show a visible marker over your tap area.", "enabled", true);
+        barAppearance = column();
+        bar.addView(barAppearance, new LinearLayout.LayoutParams(-1, -2));
+        barAppearance.setVisibility(prefs.getBoolean("enabled", true) ? View.VISIBLE : View.GONE);
+        colorPicker(barAppearance);
+        slider(barAppearance, "Opacity", "opacity", 15, 100, 70);
         space(bar, 8);
-        TextView resetSliders = resetButton(bar, "all tap bar sliders", "defaults", this::resetBarSliders);
+        TextView resetSliders = resetButton(bar, "all tap area sliders", "defaults", this::resetBarSliders);
         resetSliders.setText("Reset all");
         resetSliders.setBackground(ripple(surface, 14));
         resetSliders.setLayoutParams(new LinearLayout.LayoutParams(-1, -2));
@@ -157,7 +158,19 @@ public class MainActivity extends Activity {
 
     @Override protected void onResume() {
         super.onResume();
+        foreground = true;
+        notifyBarAppearance();
         updateStatus();
+    }
+
+    @Override protected void onPause() {
+        foreground = false;
+        notifyBarAppearance();
+        super.onPause();
+    }
+
+    private void notifyBarAppearance() {
+        sendBroadcast(new Intent(TopService.ACTION_REFRESH_APPEARANCE).setPackage(getPackageName()));
     }
 
     private void updateStatus() {
@@ -173,7 +186,7 @@ public class MainActivity extends Activity {
         boolean enabledInSettings = services != null && services.contains(name);
         status.setText(TopService.connected ? "●  Ready when you are" : enabledInSettings ? "●  Waiting for accessibility" : "●  Let's get you set up");
         status.setTextColor(TopService.connected ? green : accent);
-        statusDetail.setText(TopService.connected ? "Open an app, find your list, and tap the bar."
+        statusDetail.setText(TopService.connected ? "Open an app, find your list, and tap your chosen area."
                 : enabledInSettings ? "Waiting for Android to connect. If this persists, turn TipTop off and on in accessibility settings."
                 : "Enable TipTop in accessibility settings to start scrolling.");
     }
@@ -202,8 +215,8 @@ public class MainActivity extends Activity {
             prefs.edit().putBoolean(key, checked).apply();
             if (key.equals("haptics") && checked) Haptics.click(button);
             if (key.equals("tiptop_enabled")) updateStatus();
-            if (key.equals("enabled") && barControls != null)
-                barControls.setVisibility(checked ? View.VISIBLE : View.GONE);
+            if (key.equals("enabled") && barAppearance != null)
+                barAppearance.setVisibility(checked ? View.VISIBLE : View.GONE);
             if (!key.equals("haptics")) notifyService();
             if (preview != null) preview.invalidate();
         });
@@ -267,6 +280,102 @@ public class MainActivity extends Activity {
     private String format(String key, int value) {
         if (key.equals("scroll_speed")) return SPEED_LABELS[value];
         return value + (key.equals("opacity") ? "%" : " dp");
+    }
+
+    private void colorPicker(LinearLayout parent) {
+        addText(parent, "Color", 15, ink, true, 18, 8);
+        LinearLayout button = row();
+        button.setPadding(dp(14), dp(10), dp(14), dp(10));
+        button.setMinimumHeight(dp(52));
+        button.setBackground(ripple(base, 14));
+        button.setAccessibilityDelegate(buttonDelegate());
+        View swatch = new View(this);
+        button.addView(swatch, new LinearLayout.LayoutParams(dp(28), dp(28)));
+        TextView value = text("", 14, ink, true);
+        value.setPadding(dp(12), 0, dp(12), 0);
+        button.addView(value, new LinearLayout.LayoutParams(0, -2, 1));
+        button.addView(text("Edit", 13, accent, true));
+        Runnable refresh = () -> {
+            int color = ThemeColors.bar(prefs, dark);
+            swatch.setBackground(shape(color, 14));
+            String label = prefs.contains("bar_color") ? hex(color) : "Theme highlight";
+            value.setText(label);
+            button.setContentDescription("Tap bar color: " + label + ". Choose color.");
+            if (preview != null) preview.invalidate();
+        };
+        refresh.run();
+        button.setOnClickListener(v -> showColorPicker(refresh));
+        parent.addView(button, new LinearLayout.LayoutParams(-1, -2));
+    }
+
+    private String hex(int color) {
+        return String.format(java.util.Locale.ROOT, "#%06X", color & 0xffffff);
+    }
+
+    private void showColorPicker(Runnable refresh) {
+        // Android-style swatch palette: selecting a color applies it directly.
+        int[] colors = {
+                0xfff44336, 0xffe91e63, 0xff9c27b0, ThemeColors.accent(dark),
+                0xff673ab7, 0xff3f51b5, 0xff2196f3, 0xff03a9f4,
+                0xff00bcd4, 0xff009688, 0xff4caf50, 0xff8bc34a,
+                0xffcddc39, 0xffffeb3b, 0xffffc107, 0xffff9800,
+                0xffff5722, 0xff795548, 0xff607d8b, 0xff9e9e9e,
+                0xffeeeeee, 0xffbdbdbd, 0xff424242, 0xff000000
+        };
+        String[] names = {
+                "Red", "Pink", "Purple", "Theme highlight",
+                "Deep purple", "Indigo", "Blue", "Light blue",
+                "Cyan", "Teal", "Green", "Light green",
+                "Lime", "Yellow", "Amber", "Orange",
+                "Deep orange", "Brown", "Blue grey", "Grey",
+                "White", "Light grey", "Dark grey", "Black"
+        };
+        LinearLayout palette = column();
+        palette.setPadding(dp(16), dp(8), dp(16), dp(8));
+        ScrollView paletteScroll = new ScrollView(this);
+        paletteScroll.addView(palette);
+        paletteScroll.setBackgroundColor(card);
+        TextView pickerTitle = text("Tap bar color", 20, ink, true);
+        pickerTitle.setPadding(dp(24), dp(24), dp(24), dp(12));
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setCustomTitle(pickerTitle)
+                .setView(paletteScroll)
+                .setNeutralButton("Default", (d, which) -> {
+                    prefs.edit().remove("bar_color").apply();
+                    refresh.run();
+                    notifyBarAppearance();
+                }).create();
+        int selected = ThemeColors.bar(prefs, dark);
+        for (int rowIndex = 0; rowIndex < colors.length / 4; rowIndex++) {
+            LinearLayout row = row();
+            for (int column = 0; column < 4; column++) {
+                int index = rowIndex * 4 + column;
+                int color = colors[index];
+                FrameLayout cell = new FrameLayout(this);
+                TextView swatch = text(selected == color ? "✓" : "", 24,
+                        Color.red(color) * .299 + Color.green(color) * .587
+                                + Color.blue(color) * .114 > 160 ? 0xff24273a : 0xffffffff, true);
+                swatch.setGravity(Gravity.CENTER);
+                swatch.setBackground(ripple(color, 24));
+                swatch.setContentDescription(names[index] + ", " + hex(color));
+                swatch.setSelected(selected == color);
+                swatch.setAccessibilityDelegate(buttonDelegate());
+                swatch.setOnClickListener(v -> {
+                    prefs.edit().putInt("bar_color", color).apply();
+                    refresh.run();
+                    notifyBarAppearance();
+                    dialog.dismiss();
+                });
+                cell.addView(swatch, new FrameLayout.LayoutParams(dp(48), dp(48), Gravity.CENTER));
+                row.addView(cell, new LinearLayout.LayoutParams(0, dp(60), 1));
+            }
+            palette.addView(row, new LinearLayout.LayoutParams(-1, -2));
+        }
+        dialog.show();
+        dialog.getWindow().setBackgroundDrawable(shape(card, 24));
+        dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setTextColor(accent);
+        if (android.os.Build.VERSION.SDK_INT >= 29)
+            dialog.getWindow().getDecorView().setForceDarkAllowed(false);
     }
 
     private LinearLayout choices(LinearLayout parent, String key, String[] options, String initial) {
@@ -416,7 +525,7 @@ public class MainActivity extends Activity {
         private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
         BarPreview() {
             super(MainActivity.this);
-            setContentDescription("Tap bar preview. Size, position, offset and opacity update as you adjust the controls.");
+            setContentDescription("Tap area preview. An outline shows where taps work when the bar is hidden.");
         }
         @Override protected void onDraw(Canvas canvas) {
             super.onDraw(canvas);
@@ -429,15 +538,26 @@ public class MainActivity extends Activity {
                 canvas.drawRoundRect(dp(44), y + dp(2), getWidth() * (i == 1 ? .65f : .83f), y + dp(6), dp(2), dp(2), paint);
                 canvas.drawRoundRect(dp(44), y + dp(10), getWidth() * .5f, y + dp(13), dp(2), dp(2), paint);
             }
-            if (!prefs.getBoolean("enabled", true)) return;
             float scale = getWidth() / (float) getResources().getDisplayMetrics().widthPixels;
             float width = dp(prefs.getInt("width", 100)) * scale;
             float height = dp(prefs.getInt("height", 36)) * scale;
             float offset = dp(prefs.getInt("offset", 8)) * scale;
             String position = prefs.getString("position", "Center");
             float x = position.equals("Left") ? 0 : position.equals("Right") ? getWidth() - width : (getWidth() - width) / 2;
-            paint.setColor(alpha(0xff2768f4, Math.round(255 * prefs.getInt("opacity", 70) / 100f)));
-            canvas.drawRoundRect(x, offset, x + width, offset + height, height / 2, height / 2, paint);
+            if (prefs.getBoolean("enabled", true)) {
+                paint.setColor(alpha(ThemeColors.bar(prefs, dark), Math.round(255 * prefs.getInt("opacity", 70) / 100f)));
+                canvas.drawRoundRect(x, offset, x + width, offset + height, height / 2, height / 2, paint);
+            } else {
+                // Outline exists only in settings; the real tap area is invisible.
+                paint.setColor(accent);
+                paint.setStyle(Paint.Style.STROKE);
+                paint.setStrokeWidth(dp(1));
+                paint.setPathEffect(new DashPathEffect(new float[]{dp(4), dp(3)}, 0));
+                float inset = dp(1);
+                canvas.drawRect(x + inset, offset + inset, x + width - inset, offset + height - inset, paint);
+                paint.setPathEffect(null);
+                paint.setStyle(Paint.Style.FILL);
+            }
         }
     }
 }

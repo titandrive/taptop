@@ -7,7 +7,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
-import android.graphics.Color;
+import android.content.res.Configuration;
 import android.graphics.Path;
 import android.graphics.Rect;
 import android.graphics.drawable.GradientDrawable;
@@ -32,6 +32,7 @@ import java.util.List;
 
 public class TopService extends AccessibilityService {
     public static final String ACTION_UPDATE = "com.tiptop.app.UPDATE";
+    public static final String ACTION_REFRESH_APPEARANCE = "com.tiptop.app.REFRESH_APPEARANCE";
     public static volatile boolean connected = false;
     private static final List<Runnable> connectionListeners = new ArrayList<>();
 
@@ -72,6 +73,10 @@ public class TopService extends AccessibilityService {
             "androidx.core.view.accessibility.action.ARGUMENT_SCROLL_AMOUNT_FLOAT";
     private final BroadcastReceiver update = new BroadcastReceiver() {
         @Override public void onReceive(Context context, Intent intent) {
+            if (ACTION_REFRESH_APPEARANCE.equals(intent.getAction())) {
+                if (bar != null) applyBarAppearance(bar);
+                return;
+            }
             stopNativeScroll("settings changed");
             showBar();
         }
@@ -81,7 +86,9 @@ public class TopService extends AccessibilityService {
         prefs = getSharedPreferences("settings", MODE_PRIVATE);
         windows = (WindowManager) getSystemService(WINDOW_SERVICE);
         choreographer = Choreographer.getInstance();
-        registerReceiver(update, new IntentFilter(ACTION_UPDATE), Context.RECEIVER_NOT_EXPORTED);
+        IntentFilter filter = new IntentFilter(ACTION_UPDATE);
+        filter.addAction(ACTION_REFRESH_APPEARANCE);
+        registerReceiver(update, filter, Context.RECEIVER_NOT_EXPORTED);
         showBar();
         setConnected(true);
     }
@@ -106,6 +113,10 @@ public class TopService extends AccessibilityService {
         }
     }
     @Override public void onInterrupt() { stopNativeScroll("interrupted"); }
+    @Override public void onConfigurationChanged(Configuration configuration) {
+        super.onConfigurationChanged(configuration);
+        if (bar != null) applyBarAppearance(bar);
+    }
     @Override public boolean onUnbind(Intent intent) {
         setConnected(false);
         stopNativeScroll("service disconnected");
@@ -124,13 +135,9 @@ public class TopService extends AccessibilityService {
     private void showBar() {
         if (windows == null) return;
         if (bar != null) { windows.removeView(bar); bar = null; }
-        if (!prefs.getBoolean("tiptop_enabled", true) || !prefs.getBoolean("enabled", true)) return;
+        if (!prefs.getBoolean("tiptop_enabled", true)) return;
         View view = new View(this);
-        GradientDrawable background = new GradientDrawable();
-        background.setColor(Color.rgb(39, 104, 244));
-        background.setCornerRadius(dp(50));
-        view.setBackground(background);
-        view.setAlpha(prefs.getInt("opacity", 70) / 100f);
+        applyBarAppearance(view);
         view.setContentDescription("Scroll to top");
         view.setOnClickListener(v -> scrollToTop());
         final boolean[] stoppedOnDown = {false};
@@ -233,7 +240,7 @@ public class TopService extends AccessibilityService {
             logScrollMode("paced native v2", target);
             showStopRegion();
             if (movingList == null) return;
-            if (bar != null) bar.getBackground().setTint(Color.rgb(220, 64, 64));
+            if (bar != null) applyBarAppearance(bar);
             choreographer.postFrameCallback(advanceScroll);
             handler.postDelayed(scrollWatchdog, 250);
             return;
@@ -261,7 +268,7 @@ public class TopService extends AccessibilityService {
                     stopNativeScroll(cancelled ? "drag cancelled" : "drag finished");
                 });
         logScrollMode("continuous drag speed=" + speed, target);
-        if (bar != null) bar.getBackground().setTint(Color.rgb(220, 64, 64));
+        if (bar != null) applyBarAppearance(bar);
         handler.postDelayed(scrollWatchdog, 250);
         dragScroller.start();
     }
@@ -322,7 +329,22 @@ public class TopService extends AccessibilityService {
         movingList = null;
         if (dragScroller != null) dragScroller.stop();
         if (!consumingStopTouch) removeStopRegion();
-        if (bar != null) bar.getBackground().setTint(Color.rgb(39, 104, 244));
+        if (bar != null) applyBarAppearance(bar);
+    }
+
+    private void applyBarAppearance(View view) {
+        boolean dark = ThemeColors.isDark(prefs, getResources().getConfiguration());
+        int color = movingList == null ? ThemeColors.bar(prefs, dark) : ThemeColors.scrolling(dark);
+        GradientDrawable background = new GradientDrawable();
+        background.setCornerRadius(dp(50));
+        // Fill opacity is independent of the adjustment outline. A transparent
+        // background keeps the same touch window active outside settings.
+        int opacity = prefs.getBoolean("enabled", true)
+                ? Math.round(255 * prefs.getInt("opacity", 70) / 100f) : 0;
+        background.setColor((color & 0x00ffffff) | (opacity << 24));
+        if (MainActivity.foreground && !prefs.getBoolean("enabled", true))
+            background.setStroke(dp(2), ThemeColors.accent(dark), dp(2), dp(3));
+        view.setBackground(background);
     }
 
     private void cancelDragOnTouch() {
