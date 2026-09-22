@@ -47,6 +47,7 @@ public class TopService extends AccessibilityService {
     }
     private WindowManager windows;
     private View bar;
+    private Configuration overlayConfiguration;
     private SharedPreferences prefs;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private Choreographer choreographer;
@@ -97,6 +98,7 @@ public class TopService extends AccessibilityService {
     @Override protected void onServiceConnected() {
         prefs = getSharedPreferences("settings", MODE_PRIVATE);
         windows = (WindowManager) getSystemService(WINDOW_SERVICE);
+        overlayConfiguration = new Configuration(getResources().getConfiguration());
         choreographer = Choreographer.getInstance();
         IntentFilter filter = new IntentFilter(ACTION_UPDATE);
         filter.addAction(ACTION_REFRESH_APPEARANCE);
@@ -138,7 +140,26 @@ public class TopService extends AccessibilityService {
     @Override public void onInterrupt() { stopNativeScroll("interrupted"); }
     @Override public void onConfigurationChanged(Configuration configuration) {
         super.onConfigurationChanged(configuration);
-        if (bar != null) applyBarAppearance(bar);
+        Configuration previous = overlayConfiguration;
+        overlayConfiguration = new Configuration(configuration);
+        if (prefs == null || windows == null) return;
+        boolean geometryChanged = previous == null
+                || previous.screenWidthDp != configuration.screenWidthDp
+                || previous.screenHeightDp != configuration.screenHeightDp
+                || previous.densityDpi != configuration.densityDpi
+                || previous.orientation != configuration.orientation;
+        if (geometryChanged) {
+            // A fold/display transition can change both the pixel size and the
+            // cutout placement. Recreate the touch window with current metrics.
+            if (dragScroller != null) cancelDragOnTouch();
+            stopNativeScroll("display geometry changed");
+            recentScrollTarget = null;
+            showBar();
+            Log.d("TapTopScroll", "tap zone rebuilt after display geometry change");
+        } else if (bar != null) {
+            // Theme-only changes do not need to recreate the touch window.
+            applyBarAppearance(bar);
+        }
     }
     @Override public boolean onUnbind(Intent intent) {
         setConnected(false);
