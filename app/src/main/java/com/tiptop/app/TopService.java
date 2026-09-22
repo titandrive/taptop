@@ -152,15 +152,20 @@ public class TopService extends AccessibilityService {
             WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
                     | WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
+                    | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
                     | WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH,
             android.graphics.PixelFormat.TRANSLUCENT);
         String position = prefs.getString("position", "Center");
         params.gravity = Gravity.TOP | (position.equals("Left") ? Gravity.LEFT : position.equals("Right") ? Gravity.RIGHT : Gravity.CENTER_HORIZONTAL);
-        // WindowManager starts this window below the status bar on some devices.
-        // Subtract that inset so zero means the physical top for both drawing and touch.
-        if (android.os.Build.VERSION.SDK_INT >= 28)
+        // Anchor to the physical screen, not the status-bar content inset.
+        // Subtracting a guessed inset produces negative offsets that Android
+        // clamps to zero, leaving the first part of the slider unresponsive.
+        if (android.os.Build.VERSION.SDK_INT >= 30) {
+            params.setFitInsetsTypes(0);
+            params.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS;
+        } else if (android.os.Build.VERSION.SDK_INT >= 28)
             params.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
-        params.y = dp(prefs.getInt("offset", 8)) - statusBarHeight();
+        params.y = dp(prefs.getInt("offset", 8));
         try { windows.addView(view, params); bar = view; } catch (WindowManager.BadTokenException ignored) {}
     }
 
@@ -458,10 +463,6 @@ public class TopService extends AccessibilityService {
         // Diagnostic metadata only; never log list text or screen content.
         Log.d("TipTopScroll", mode + (node == null ? ": no target" :
                 ": " + node.getPackageName() + " / " + node.getClassName()));
-    }
-    private int statusBarHeight() {
-        int id = getResources().getIdentifier("status_bar_height", "dimen", "android");
-        return id > 0 ? getResources().getDimensionPixelSize(id) : dp(24);
     }
     private int dp(int n) { return (int)(n * getResources().getDisplayMetrics().density + .5f); }
 }

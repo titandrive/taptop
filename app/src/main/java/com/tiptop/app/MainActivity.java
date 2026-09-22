@@ -68,8 +68,6 @@ public class MainActivity extends Activity {
 
         section("SCROLLING");
         LinearLayout behavior = card();
-        toggle(behavior, "Show tap bar", "One tap to head back to the top.", "enabled", true);
-        divider(behavior);
         toggle(behavior, "Haptic feedback", "A gentle click when you tap the bar.", "haptics", true);
         divider(behavior);
         slider(behavior, "Scroll speed", "scroll_speed", 0, 4, 4);
@@ -83,6 +81,8 @@ public class MainActivity extends Activity {
 
         section("TAP BAR");
         LinearLayout bar = card();
+        toggle(bar, "Show tap bar", "One tap to head back to the top.", "enabled", true);
+        divider(bar);
         addText(bar, "Make it yours", 19, ink, true, 0, 4);
         addText(bar, "Adjust the size and placement to suit your thumb.", 13, muted, false, 0, 16);
         preview = new BarPreview();
@@ -93,6 +93,11 @@ public class MainActivity extends Activity {
         slider(bar, "Height", "height", 24, 80, 36);
         slider(bar, "Top offset", "offset", 0, 80, 8);
         slider(bar, "Opacity", "opacity", 15, 100, 70);
+        space(bar, 8);
+        TextView resetSliders = resetButton(bar, "all tap bar sliders", "defaults", this::resetBarSliders);
+        resetSliders.setText("Reset all");
+        resetSliders.setBackground(ripple(surface, 14));
+        resetSliders.setLayoutParams(new LinearLayout.LayoutParams(-1, -2));
 
         section("COMPATIBILITY");
         LinearLayout compatibility = card();
@@ -206,6 +211,12 @@ public class MainActivity extends Activity {
             public void onStartTrackingTouch(SeekBar control) {}
             public void onStopTrackingTouch(SeekBar control) {}
         });
+        if (!speed) resetButton(heading, title, format(key, initial), () -> {
+            seek.setProgress(initial - min);
+            prefs.edit().putInt(key, initial).apply();
+            notifyService();
+            if (preview != null) preview.invalidate();
+        });
         parent.addView(seek, new LinearLayout.LayoutParams(-1, dp(48)));
         if (speed) {
             LinearLayout limits = row();
@@ -221,7 +232,7 @@ public class MainActivity extends Activity {
         return value + (key.equals("opacity") ? "%" : " dp");
     }
 
-    private void choices(LinearLayout parent, String key, String[] options, String initial) {
+    private LinearLayout choices(LinearLayout parent, String key, String[] options, String initial) {
         LinearLayout group = row();
         group.setPadding(dp(4), dp(4), dp(4), dp(4));
         group.setBackground(shape(base, 16));
@@ -245,6 +256,35 @@ public class MainActivity extends Activity {
         }
         updateChoices(group, prefs.getString(key, initial));
         parent.addView(group, new LinearLayout.LayoutParams(-1, -2));
+        return group;
+    }
+
+    private void resetBarSliders() {
+        prefs.edit()
+                .putInt("width", 100)
+                .putInt("height", 36)
+                .putInt("offset", 8)
+                .putInt("opacity", 70)
+                .apply();
+        notifyService();
+        // Rebind every control and the preview together, preserving scroll position.
+        recreate();
+    }
+
+    private TextView resetButton(LinearLayout parent, String title, String defaultValue, Runnable reset) {
+        TextView button = text("Reset", 13, accent, true);
+        button.setGravity(Gravity.CENTER);
+        button.setMinHeight(dp(48));
+        button.setMinWidth(dp(56));
+        button.setPadding(dp(8), 0, dp(8), 0);
+        button.setBackground(ripple(card, 12));
+        button.setContentDescription("Reset " + title + " to " + defaultValue);
+        button.setAccessibilityDelegate(buttonDelegate());
+        button.setOnClickListener(v -> reset.run());
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-2, -2);
+        params.leftMargin = dp(6);
+        parent.addView(button, params);
+        return button;
     }
 
     private void updateChoices(LinearLayout group, String selected) {
