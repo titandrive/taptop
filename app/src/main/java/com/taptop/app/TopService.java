@@ -21,6 +21,7 @@ import android.view.Gravity;
 import android.view.KeyCharacterMap;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.ViewConfiguration;
 import android.view.WindowManager;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
@@ -184,30 +185,66 @@ public class TopService extends AccessibilityService {
         applyBarAppearance(view);
         view.setContentDescription("Scroll to top");
         view.setOnClickListener(v -> scrollToTop());
-        final boolean[] stoppedOnDown = {false};
-        view.setOnTouchListener((v, event) -> {
-            if (event.getActionMasked() == MotionEvent.ACTION_OUTSIDE) {
-                // Accessibility gestures use the virtual device. Only a real
-                // touch should interrupt our own ongoing injected movement.
-                if (dragScroller != null
-                        && event.getDeviceId() != KeyCharacterMap.VIRTUAL_KEYBOARD) {
-                    Log.d("TapTopScroll", "physical screen touch: cancel drag immediately");
-                    cancelDragOnTouch();
+        final int touchSlop = ViewConfiguration.get(this).getScaledTouchSlop();
+        view.setOnTouchListener(new View.OnTouchListener() {
+            private float downX, downY;
+            private boolean tracking, moved, stoppedOnDown, shadeRequested;
+
+            @Override public boolean onTouch(View v, MotionEvent event) {
+                int action = event.getActionMasked();
+                if (action == MotionEvent.ACTION_OUTSIDE) {
+                    // Only physical touches interrupt our injected movement.
+                    if (dragScroller != null
+                            && event.getDeviceId() != KeyCharacterMap.VIRTUAL_KEYBOARD) {
+                        cancelDragOnTouch();
+                    }
+                    return true;
+                }
+                if (action == MotionEvent.ACTION_DOWN) {
+                    downX = event.getRawX();
+                    downY = event.getRawY();
+                    tracking = true;
+                    moved = shadeRequested = false;
+                    stoppedOnDown = dragScroller != null || movingList != null
+                            || SystemClock.uptimeMillis() - lastDragCancellation < 150;
+                    if (dragScroller != null) cancelDragOnTouch();
+                    if (movingList != null) stopNativeScroll("tap zone touch");
+                    return true;
+                }
+                if (action == MotionEvent.ACTION_CANCEL
+                        || action == MotionEvent.ACTION_POINTER_DOWN) {
+                    tracking = false;
+                    return true;
+                }
+                if (!tracking) return true;
+                if (action == MotionEvent.ACTION_MOVE || action == MotionEvent.ACTION_UP) {
+                    float dx = event.getRawX() - downX;
+                    float dy = event.getRawY() - downY;
+                    if (dx * dx + dy * dy > touchSlop * touchSlop) moved = true;
+                    // Include batched positions so leaving and returning to the
+                    // start point never turns a swipe back into a tap.
+                    float rawOffsetX = event.getRawX() - event.getX();
+                    float rawOffsetY = event.getRawY() - event.getY();
+                    for (int i = 0; i < event.getHistorySize(); i++) {
+                        float hx = event.getHistoricalX(i) + rawOffsetX - downX;
+                        float hy = event.getHistoricalY(i) + rawOffsetY - downY;
+                        if (hx * hx + hy * hy > touchSlop * touchSlop) moved = true;
+                    }
+                    if (!stoppedOnDown && !shadeRequested
+                            && dy > touchSlop && dy > Math.abs(dx)) {
+                        shadeRequested = true;
+                        performGlobalAction(GLOBAL_ACTION_NOTIFICATIONS);
+                    }
+                    if (action == MotionEvent.ACTION_UP) {
+                        tracking = false;
+                        if (!stoppedOnDown && !moved && !shadeRequested) {
+                            playTapFeedback(v);
+                            v.performClick();
+                        }
+                    }
                 }
                 return true;
             }
-            if (event.getActionMasked() == MotionEvent.ACTION_DOWN) {
-                stoppedOnDown[0] = dragScroller != null
-                        || SystemClock.uptimeMillis() - lastDragCancellation < 150;
-                if (!stoppedOnDown[0]) playTapFeedback(v);
-                if (dragScroller != null) cancelDragOnTouch();
-                return true;
-            }
-            if (event.getActionMasked() == MotionEvent.ACTION_UP) {
-                if (!stoppedOnDown[0]) v.performClick();
-                return true;
-            }
-            return true;
         });
         WindowManager.LayoutParams params = new WindowManager.LayoutParams(
             dp(prefs.getInt("width", 100)), dp(prefs.getInt("height", 36)),
