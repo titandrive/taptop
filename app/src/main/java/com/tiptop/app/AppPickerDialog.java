@@ -17,6 +17,7 @@ import android.view.View;
 import android.view.Gravity;
 import android.view.ViewGroup;
 import android.widget.BaseAdapter;
+import android.widget.Button;
 import android.widget.CheckedTextView;
 import android.widget.EditText;
 import android.widget.LinearLayout;
@@ -68,10 +69,27 @@ final class AppPickerDialog {
             @Override public int getCount() { return visible.size(); }
             @Override public Entry getItem(int position) { return visible.get(position); }
             @Override public long getItemId(int position) { return position; }
+            @Override public int getViewTypeCount() { return 2; }
+            @Override public int getItemViewType(int position) {
+                return getItem(position).packageName == null ? 1 : 0;
+            }
+            @Override public boolean areAllItemsEnabled() { return false; }
+            @Override public boolean isEnabled(int position) { return getItemViewType(position) == 0; }
             @Override public View getView(int position, View recycled, ViewGroup parent) {
+                Entry app = getItem(position);
+                if (app.packageName == null) {
+                    TextView header = recycled instanceof TextView
+                            ? (TextView) recycled : new TextView(activity);
+                    header.setText(app.label);
+                    header.setTextSize(13);
+                    header.setTextColor(accent);
+                    header.setTypeface(null, android.graphics.Typeface.BOLD);
+                    header.setPadding(dp(activity, 4), dp(activity, 16), dp(activity, 4), dp(activity, 8));
+                    if (Build.VERSION.SDK_INT >= 28) header.setAccessibilityHeading(true);
+                    return header;
+                }
                 CheckedTextView row = recycled instanceof CheckedTextView
                         ? (CheckedTextView) recycled : new CheckedTextView(activity);
-                Entry app = getItem(position);
                 row.setText(app.label);
                 int iconSize = dp(activity, 36);
                 app.icon.setBounds(0, 0, iconSize, iconSize);
@@ -101,12 +119,55 @@ final class AppPickerDialog {
             // Stable sort keeps alphabetical order within each group.
             visible.sort((a, b) -> Boolean.compare(
                     selected.contains(b.packageName), selected.contains(a.packageName)));
+            int selectedCount = 0;
+            while (selectedCount < visible.size()
+                    && selected.contains(visible.get(selectedCount).packageName)) selectedCount++;
+            if (selectedCount < visible.size())
+                visible.add(selectedCount, new Entry(null, "Apps", null));
+            if (selectedCount > 0)
+                visible.add(0, new Entry(null, "Selected apps", null));
             adapter.notifyDataSetChanged();
             count.setText(selected.size() + " selected" + (visible.isEmpty() ? " · No matching apps" : ""));
         };
         list.setOnItemClickListener((parent, view, position, id) -> {
             String name = visible.get(position).packageName;
+            if (name == null) return;
             if (!selected.remove(name)) selected.add(name);
+            refresh.run();
+        });
+        LinearLayout selectionActions = new LinearLayout(activity);
+        selectionActions.setOrientation(LinearLayout.HORIZONTAL);
+        body.addView(selectionActions, new LinearLayout.LayoutParams(-1, -2));
+        Button selectAll = new Button(activity, null, android.R.attr.borderlessButtonStyle);
+        selectAll.setText("Select all");
+        selectAll.setTextColor(accent);
+        selectAll.setEnabled(false);
+        Button clear = new Button(activity, null, android.R.attr.borderlessButtonStyle);
+        clear.setText("Clear");
+        clear.setTextColor(accent);
+        Button cancel = new Button(activity, null, android.R.attr.borderlessButtonStyle);
+        cancel.setText("Cancel");
+        Button done = new Button(activity, null, android.R.attr.borderlessButtonStyle);
+        done.setText("Done");
+        for (Button button : new Button[]{selectAll, clear, cancel, done}) {
+            button.setTextColor(accent);
+            button.setAllCaps(false);
+            button.setSingleLine(true);
+            button.setMinWidth(0);
+            button.setMinimumWidth(0);
+            button.setMinHeight(dp(activity, 48));
+            button.setPadding(dp(activity, 4), 0, dp(activity, 4), 0);
+            button.setAutoSizeTextTypeUniformWithConfiguration(10, 14, 1,
+                    android.util.TypedValue.COMPLEX_UNIT_SP);
+            selectionActions.addView(button, new LinearLayout.LayoutParams(
+                    0, dp(activity, 48), button == selectAll ? 1.3f : 1f));
+        }
+        selectAll.setOnClickListener(v -> {
+            for (Entry app : all) selected.add(app.packageName);
+            refresh.run();
+        });
+        clear.setOnClickListener(v -> {
+            selected.clear();
             refresh.run();
         });
         search.addTextChangedListener(new TextWatcher() {
@@ -120,13 +181,13 @@ final class AppPickerDialog {
         title.setTextColor(ink);
         title.setPadding(padding, padding, padding, dp(activity, 12));
         AlertDialog dialog = new AlertDialog.Builder(activity)
-                .setCustomTitle(title).setView(body)
-                .setPositiveButton("Done", (d, which) -> {
-                    prefs.edit().putStringSet(key, new HashSet<>(selected)).apply();
-                    onSaved.run();
-                })
-                .setNegativeButton("Cancel", null)
-                .setNeutralButton("Clear", null).create();
+                .setCustomTitle(title).setView(body).create();
+        cancel.setOnClickListener(v -> dialog.dismiss());
+        done.setOnClickListener(v -> {
+            prefs.edit().putStringSet(key, new HashSet<>(selected)).apply();
+            onSaved.run();
+            dialog.dismiss();
+        });
         dialog.show();
         GradientDrawable background = new GradientDrawable();
         background.setColor(card);
@@ -136,12 +197,6 @@ final class AppPickerDialog {
                 | android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
         int height = (int) (activity.getResources().getDisplayMetrics().heightPixels * .8f);
         dialog.getWindow().setLayout(-1, height);
-        for (int button : new int[]{AlertDialog.BUTTON_POSITIVE, AlertDialog.BUTTON_NEGATIVE, AlertDialog.BUTTON_NEUTRAL})
-            dialog.getButton(button).setTextColor(accent);
-        dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener(v -> {
-            selected.clear();
-            refresh.run();
-        });
         PackageManager packages = activity.getApplicationContext().getPackageManager();
         // Package labels and icons can involve disk/binder work; keep it off the UI thread.
         new Thread(() -> {
@@ -172,6 +227,7 @@ final class AppPickerDialog {
             activity.runOnUiThread(() -> {
                 if (activity.isDestroyed() || !dialog.isShowing()) return;
                 all.addAll(loaded);
+                selectAll.setEnabled(true);
                 refresh.run();
             });
         }, "TipTop-app-picker").start();
