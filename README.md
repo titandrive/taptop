@@ -6,6 +6,8 @@ Tap your chosen area to scroll to the top. Touch the screen to stop.
 
 Version **0.5.0** · Android **8.0+**
 
+[Download APK](https://github.com/titandrive/tiptop/releases/latest/download/TipTop.apk) · [Add to Obtainium](https://apps.obtainium.imranr.dev/redirect?r=obtainium%3A%2F%2Fapp%2F%257B%2522id%2522%253A%2522com.tiptop.app%2522%252C%2522url%2522%253A%2522https%253A%252F%252Fgithub.com%252Ftitandrive%252Ftiptop%2522%252C%2522author%2522%253A%2522TitanDrive%2522%252C%2522name%2522%253A%2522TipTop%2522%257D)
+
 ## Get started
 
 1. Install and open TipTop.
@@ -58,6 +60,8 @@ Use Android Studio, or JDK 17 with Android SDK 34:
 ```
 
 APK: `app/build/outputs/apk/debug/app-debug.apk`
+
+For signed releases, see [release build instructions](docs/RELEASING.md).
 
 </details>
 

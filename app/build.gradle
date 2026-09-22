@@ -1,5 +1,11 @@
 plugins { id 'com.android.application' }
 
+def releaseSigning = new Properties()
+def releaseSigningFile = rootProject.file('keystore.properties')
+if (releaseSigningFile.exists()) {
+    releaseSigningFile.withInputStream { releaseSigning.load(it) }
+}
+
 dependencies {
     testImplementation 'junit:junit:4.13.2'
 }
@@ -9,6 +15,21 @@ android {
     compileSdk 34
     buildFeatures {
         buildConfig true
+    }
+    signingConfigs {
+        if (releaseSigningFile.exists()) {
+            release {
+                storeFile rootProject.file(releaseSigning['storeFile'])
+                storePassword releaseSigning['storePassword']
+                keyAlias releaseSigning['keyAlias']
+                keyPassword releaseSigning['keyPassword']
+            }
+        }
+    }
+    buildTypes {
+        release {
+            if (releaseSigningFile.exists()) signingConfig signingConfigs.release
+        }
     }
     defaultConfig {
         applicationId 'com.tiptop.app'
