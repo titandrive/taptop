@@ -2,4 +2,6 @@
     <string name="service_description">Adds a small tap target near the top of the screen. When tapped, TapTop asks the current app to scroll its list to the beginning. TapTop does not save screen content or use the internet.</string>
     <string name="shortcut_toggle">Toggle TapTop</string>
     <string name="shortcut_scroll">Scroll to top</string>
+    <string name="shortcut_turn_on">Turn on TapTop</string>
+    <string name="shortcut_turn_off">Turn off TapTop</string>
 </resources>

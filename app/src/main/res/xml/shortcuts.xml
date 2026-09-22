@@ -9,4 +9,14 @@
         <intent android:action="android.intent.action.VIEW"
             android:targetPackage="com.taptop.app" android:targetClass="com.taptop.app.ScrollShortcutActivity" />
     </shortcut>
+    <shortcut android:shortcutId="turn_on_taptop" android:enabled="true"
+        android:icon="@drawable/ic_start" android:shortcutShortLabel="@string/shortcut_turn_on">
+        <intent android:action="android.intent.action.VIEW"
+            android:targetPackage="com.taptop.app" android:targetClass="com.taptop.app.TurnOnShortcutActivity" />
+    </shortcut>
+    <shortcut android:shortcutId="turn_off_taptop" android:enabled="true"
+        android:icon="@drawable/ic_stop" android:shortcutShortLabel="@string/shortcut_turn_off">
+        <intent android:action="android.intent.action.VIEW"
+            android:targetPackage="com.taptop.app" android:targetClass="com.taptop.app.TurnOffShortcutActivity" />
+    </shortcut>
 </shortcuts>

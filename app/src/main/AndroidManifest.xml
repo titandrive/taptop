@@ -34,9 +34,27 @@
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
+        <activity android:name=".TurnOnShortcutActivity" android:exported="true"
+            android:label="@string/shortcut_turn_on" android:theme="@android:style/Theme.NoDisplay"
+            android:taskAffinity="" android:excludeFromRecents="true">
+            <intent-filter>
+                <action android:name="android.intent.action.CREATE_SHORTCUT" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+        <activity android:name=".TurnOffShortcutActivity" android:exported="true"
+            android:label="@string/shortcut_turn_off" android:theme="@android:style/Theme.NoDisplay"
+            android:taskAffinity="" android:excludeFromRecents="true">
+            <intent-filter>
+                <action android:name="android.intent.action.CREATE_SHORTCUT" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
         <receiver android:name=".AutomationReceiver" android:exported="true">
             <intent-filter>
                 <action android:name="com.taptop.app.action.TOGGLE" />
+                <action android:name="com.taptop.app.action.TURN_ON" />
+                <action android:name="com.taptop.app.action.TURN_OFF" />
                 <action android:name="com.taptop.app.action.SCROLL_TO_TOP" />
             </intent-filter>
         </receiver>

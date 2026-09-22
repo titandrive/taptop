@@ -36,7 +36,7 @@ Both lists are saved separately. Excluded apps have no tap zone and cannot be sc
 ## Shortcuts
 
 - **Quick Settings:** add the TapTop tile to toggle it on or off.
-- **App shortcuts:** long-press the app icon for **Toggle TapTop** and **Scroll to top**. Compatible launchers and gesture apps can use them too.
+- **App shortcuts:** long-press the app icon for **Toggle TapTop**, **Turn on TapTop**, **Turn off TapTop**, and **Scroll to top**. Compatible launchers and gesture apps can use them too.
 - **Automation:** trigger either action from Tasker or MacroDroid.
 
 The app’s **ⓘ button** includes a usage guide and copyable automation fields.
@@ -49,9 +49,13 @@ Use **Send Intent**. Set the target to **Broadcast Receiver** in Tasker or **Bro
 | Field | Value |
 | --- | --- |
 | Toggle action | `com.taptop.app.action.TOGGLE` |
+| Turn on action | `com.taptop.app.action.TURN_ON` |
+| Turn off action | `com.taptop.app.action.TURN_OFF` |
 | Scroll action | `com.taptop.app.action.SCROLL_TO_TOP` |
 | Package | `com.taptop.app` |
 | Class | `com.taptop.app.AutomationReceiver` |
+
+Turn on and Turn off set a fixed state; repeating either does not toggle it. Turning on requires accessibility to be enabled. Turning off also works when accessibility is disconnected.
 
 Choose one action and leave the remaining fields empty. Scrolling requires TapTop and its accessibility service to be enabled.
 
