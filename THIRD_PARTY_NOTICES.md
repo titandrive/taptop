@@ -25,3 +25,11 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+## Obtainium badge
+
+`docs/assets/badge_obtainium.png` is the unmodified official badge from [Obtainium](https://github.com/ImranR98/Obtainium/blob/main/assets/graphics/badge_obtainium.png). Its upstream license is included in [OBTAINIUM_LICENSE.txt](docs/assets/OBTAINIUM_LICENSE.txt).
+
+## GitHub download badge
+
+`docs/assets/badge_github.png` uses the [Get APK from GitHub badge](https://user-images.githubusercontent.com/663460/26973090-f8fdc986-4d14-11e7-995a-e7c5e79ed925.png) linked in [HeliBoard’s README](https://github.com/Helium314/HeliBoard). GitHub’s name and logo belong to GitHub.
