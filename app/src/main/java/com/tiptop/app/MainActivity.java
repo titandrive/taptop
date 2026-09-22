@@ -22,6 +22,7 @@ import android.view.Gravity;
 import android.view.View;
 import android.widget.LinearLayout;
 import android.widget.ImageView;
+import android.widget.ImageButton;
 import android.widget.FrameLayout;
 import android.widget.ScrollView;
 import android.widget.SeekBar;
@@ -76,7 +77,7 @@ public class MainActivity extends Activity {
         scroll.setClipToPadding(false);
         content = column();
         int side = Math.max(dp(20), (getResources().getDisplayMetrics().widthPixels - dp(600)) / 2);
-        content.setPadding(side, dp(24), side, dp(32));
+        content.setPadding(side, dp(24), side, dp(12));
         scroll.addView(content);
         setContentView(scroll);
         buildHeader();
@@ -88,12 +89,6 @@ public class MainActivity extends Activity {
         divider(behavior);
         slider(behavior, "Scroll speed", "scroll_speed", 0, 4, 4);
         addText(behavior, "Choose how fast to scroll back to the top.", 13, muted, false, 0, 4);
-
-        section("APPEARANCE");
-        LinearLayout appearance = card();
-        addText(appearance, "Color theme", 17, ink, true, 0, 4);
-        addText(appearance, "Latte by day. Macchiato by night.", 13, muted, false, 0, 14);
-        choices(appearance, "theme", new String[]{"System", "Light", "Dark"}, "System");
 
         section("TAP AREA");
         LinearLayout bar = card();
@@ -131,7 +126,7 @@ public class MainActivity extends Activity {
         github.addView(githubLogo, logoParams);
         github.addView(text("GitHub", 14, accent, true));
         LinearLayout.LayoutParams githubParams = new LinearLayout.LayoutParams(-1, -2);
-        githubParams.topMargin = dp(24);
+        githubParams.topMargin = dp(8);
         content.addView(github, githubParams);
         github.setBackground(ripple(base, 14));
         github.setContentDescription("Open TipTop on GitHub");
@@ -143,7 +138,7 @@ public class MainActivity extends Activity {
                 Toast.makeText(this, "No app available to open GitHub", Toast.LENGTH_SHORT).show();
             }
         });
-        TextView version = addText(content, "Version " + BuildConfig.VERSION_NAME, 12, muted, false, 4, 0);
+        TextView version = addText(content, "Version " + BuildConfig.VERSION_NAME, 12, muted, false, 0, 0);
         version.setGravity(Gravity.CENTER);
         if (state != null) scroll.post(() -> scroll.scrollTo(0, state.getInt("scroll_y")));
     }
@@ -152,16 +147,36 @@ public class MainActivity extends Activity {
         LinearLayout row = row();
         LinearLayout words = column();
         addText(words, "TipTop", 36, ink, true, 0, 2);
-        addText(words, "Back to the top. Just like that.", 14, muted, false, 0, 0);
         row.addView(words, new LinearLayout.LayoutParams(0, -2, 1));
-        TextView icon = text("ⓘ", 28, accent, false);
+        ImageButton theme = new ImageButton(this);
+        theme.setImageResource(dark ? R.drawable.ic_sun : R.drawable.ic_moon);
+        theme.setImageTintList(ColorStateList.valueOf(muted));
+        theme.setBackground(ripple(base, 14));
+        theme.setPadding(dp(12), dp(12), dp(12), dp(12));
+        theme.setContentDescription(dark ? "Switch to light theme" : "Switch to dark theme");
+        theme.setTooltipText("Change theme · Hold to follow system");
+        theme.setOnClickListener(v -> {
+            prefs.edit().putString("theme", dark ? "Light" : "Dark").apply();
+            notifyBarAppearance();
+            recreate();
+        });
+        theme.setOnLongClickListener(v -> {
+            prefs.edit().putString("theme", "System").apply();
+            notifyBarAppearance();
+            Toast.makeText(this, "Theme follows system", Toast.LENGTH_SHORT).show();
+            recreate();
+            return true;
+        });
+        row.addView(theme, new LinearLayout.LayoutParams(dp(48), dp(48)));
+        TextView icon = text("ⓘ", 24, muted, false);
         icon.setGravity(Gravity.CENTER);
-        icon.setBackground(ripple(surface, 20));
+        icon.setBackground(ripple(base, 14));
         icon.setContentDescription("TipTop help and info");
         icon.setAccessibilityDelegate(buttonDelegate());
         icon.setOnClickListener(v -> showShortcutInfo());
-        row.addView(icon, new LinearLayout.LayoutParams(dp(60), dp(60)));
+        row.addView(icon, new LinearLayout.LayoutParams(dp(48), dp(48)));
         content.addView(row);
+        addText(content, "One tap. Back to the top.", 14, muted, false, 0, 0);
         space(content, 24);
     }
 
@@ -169,7 +184,7 @@ public class MainActivity extends Activity {
         LinearLayout body = column();
         body.setPadding(dp(24), dp(4), dp(24), dp(16));
         addText(body, "How to use TipTop", 17, ink, true, 0, 8);
-        addText(body, "Enable TipTop and its accessibility service to get started.\n\nTap the tap area to scroll to the top. Touch anywhere on the screen to stop.\n\nAdjust the scroll speed and tap area in the app. The tap area still works when the bar is hidden.", 14, muted, false, 0, 16);
+        addText(body, "Enable TipTop and its accessibility service to get started.\n\nTap the tap area to scroll to the top. Touch anywhere on the screen to stop.\n\nAdjust the scroll speed and tap area in the app. The tap area still works when the bar is hidden.\n\nUse the sun/moon button to change themes. Hold it to follow your system theme.", 14, muted, false, 0, 16);
         addText(body, "Shortcuts", 17, ink, true, 0, 8);
         addText(body, "Long-press TipTop’s app icon to find Toggle TipTop and Scroll to top. You can also select them in apps that support app shortcuts, including launchers and gesture apps.", 14, muted, false, 0, 16);
         addText(body, "Quick Settings", 17, ink, true, 0, 8);

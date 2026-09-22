@@ -1,17 +1,13 @@
 # TipTop
 
-**Back to the top with a tap.**
+**One tap. Back to the top.**
 
 Tap your chosen area to scroll to the top. Touch the screen to stop.
 
 Version **0.5.0** · Android **8.0+**
 
-<a href="https://apps.obtainium.imranr.dev/redirect?r=obtainium%3A%2F%2Fapp%2F%257B%2522id%2522%253A%2522com.tiptop.app%2522%252C%2522url%2522%253A%2522https%253A%252F%252Fgithub.com%252Ftitandrive%252Ftiptop%2522%252C%2522author%2522%253A%2522TitanDrive%2522%252C%2522name%2522%253A%2522TipTop%2522%257D">
-  <img src="docs/assets/badge_obtainium.png" alt="Get it on Obtainium" height="80">
-</a>
-<a href="https://github.com/titandrive/tiptop/releases/latest/download/TipTop.apk">
-  <img src="docs/assets/badge_github.png" alt="Get APK from GitHub" height="80">
-</a>
+[<img src="docs/assets/badge_obtainium.png" alt="Get it on Obtainium" height="80">](https://apps.obtainium.imranr.dev/redirect?r=obtainium%3A%2F%2Fapp%2F%257B%2522id%2522%253A%2522com.tiptop.app%2522%252C%2522url%2522%253A%2522https%253A%252F%252Fgithub.com%252Ftitandrive%252Ftiptop%2522%252C%2522author%2522%253A%2522TitanDrive%2522%252C%2522name%2522%253A%2522TipTop%2522%257D)
+[<img src="docs/assets/badge_github.png" alt="Get APK from GitHub" height="80">](https://github.com/titandrive/tiptop/releases/latest/download/TipTop.apk)
 
 ## Get started
 
@@ -24,7 +20,7 @@ Version **0.5.0** · Android **8.0+**
 - **Five speeds:** Slowest, Slow, Medium, Fast, Maximum.
 - **Adjustable tap area:** change its width, height, position, and top offset.
 - **Optional visible bar:** choose a color and opacity, or hide it. The hidden area still works; a dotted outline helps you adjust it inside TipTop.
-- **Light and dark themes:** Catppuccin Latte and Macchiato, with a system option.
+- **Light and dark themes:** Catppuccin Latte and Macchiato. Tap the sun/moon button to switch; hold it to follow the system.
 - **Optional haptics:** feedback when tapping the area or the enable/disable button.
 
 ## Shortcuts
