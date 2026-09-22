@@ -22,6 +22,7 @@ import android.util.Log;
 import android.view.Choreographer;
 import android.view.Gravity;
 import android.view.HapticFeedbackConstants;
+import android.view.KeyCharacterMap;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowManager;
@@ -123,11 +124,21 @@ public class TopService extends AccessibilityService {
         view.setOnClickListener(v -> scrollToTop());
         final boolean[] stoppedOnDown = {false};
         view.setOnTouchListener((v, event) -> {
+            if (event.getActionMasked() == MotionEvent.ACTION_OUTSIDE) {
+                // Accessibility gestures use the virtual device. Only a real
+                // touch should interrupt our own ongoing injected movement.
+                if (dragScroller != null
+                        && event.getDeviceId() != KeyCharacterMap.VIRTUAL_KEYBOARD) {
+                    Log.d("TipTopScroll", "physical screen touch: cancel drag immediately");
+                    cancelDragOnTouch();
+                }
+                return true;
+            }
             if (event.getActionMasked() == MotionEvent.ACTION_DOWN) {
-                playTapFeedback(v);
                 stoppedOnDown[0] = dragScroller != null
                         || SystemClock.uptimeMillis() - lastDragCancellation < 150;
-                if (dragScroller != null) stopNativeScroll("bar tap");
+                if (!stoppedOnDown[0]) playTapFeedback(v);
+                if (dragScroller != null) cancelDragOnTouch();
                 return true;
             }
             if (event.getActionMasked() == MotionEvent.ACTION_UP) {
@@ -139,7 +150,9 @@ public class TopService extends AccessibilityService {
         WindowManager.LayoutParams params = new WindowManager.LayoutParams(
             dp(prefs.getInt("width", 100)), dp(prefs.getInt("height", 36)),
             WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+                    | WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
+                    | WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH,
             android.graphics.PixelFormat.TRANSLUCENT);
         String position = prefs.getString("position", "Center");
         params.gravity = Gravity.TOP | (position.equals("Left") ? Gravity.LEFT : position.equals("Right") ? Gravity.RIGHT : Gravity.CENTER_HORIZONTAL);
@@ -293,6 +306,17 @@ public class TopService extends AccessibilityService {
         if (dragScroller != null) dragScroller.stop();
         if (!consumingStopTouch) removeStopRegion();
         if (bar != null) bar.getBackground().setTint(Color.rgb(39, 104, 244));
+    }
+
+    private void cancelDragOnTouch() {
+        if (dragScroller == null || bar == null) return;
+        int[] location = new int[2];
+        bar.getLocationOnScreen(location);
+        // A new gesture cancels pending injected movement immediately. Put its
+        // stationary contact on our own bar, where the cancellation timestamp
+        // suppresses the click, instead of tapping anything in the target app.
+        dragScroller.cancelImmediately(location[0] + bar.getWidth() / 2f,
+                Math.max(0, location[1] + bar.getHeight() / 2f));
     }
 
     private void showStopRegion() {

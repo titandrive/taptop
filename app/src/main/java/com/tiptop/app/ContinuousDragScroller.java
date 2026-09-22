@@ -39,6 +39,18 @@ final class ContinuousDragScroller {
         if (!inFlight && !finished) release();
     }
 
+    void cancelImmediately(float cancelX, float cancelY) {
+        if (finished) return;
+        // Latch completion before dispatch: cancellation/completion callbacks
+        // from the old segment must never schedule another segment.
+        finish(true);
+        Path cancel = new Path();
+        cancel.moveTo(cancelX, cancelY);
+        service.dispatchGesture(new GestureDescription.Builder()
+                .addStroke(new GestureDescription.StrokeDescription(cancel, 0, 1))
+                .build(), null, null);
+    }
+
     private void dispatchNext() {
         if (finished) return;
         if (stopping) { release(); return; }
@@ -61,6 +73,7 @@ final class ContinuousDragScroller {
         inFlight = true;
         if (!service.dispatchGesture(builder.build(), new AccessibilityService.GestureResultCallback() {
             @Override public void onCompleted(GestureDescription gesture) {
+                if (finished) return;
                 inFlight = false;
                 heldStroke = next;
                 completedSegments++;
