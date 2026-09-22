@@ -232,10 +232,11 @@ public class TopService extends AccessibilityService {
             startContinuousDrag(target, speed, webContent);
             return;
         }
-        // Maximum retains the target app's existing native animation.
-        // Lower speeds use a held drag with an explicit travel velocity.
+        // Item zero is not necessarily the visual top (e.g. reversed chats).
+        // Only use absolute collection jumps when visible rows confirm order.
+        boolean collectionStartsAtTop = target != null && collectionStartsAtTop(target);
         if (speed == ScrollFramePacer.DEFAULT_SPEED && hasBackwardAction
-                && supportsGranularScroll(target)) {
+                && collectionStartsAtTop && supportsGranularScroll(target)) {
             Bundle args = new Bundle();
             args.putFloat("android.view.accessibility.action.ARGUMENT_SCROLL_AMOUNT_FLOAT",
                     Float.POSITIVE_INFINITY);
@@ -247,7 +248,8 @@ public class TopService extends AccessibilityService {
                 return;
             }
         }
-        if (target != null && (speed == ScrollFramePacer.DEFAULT_SPEED || !hasBackwardAction)
+        if (target != null && collectionStartsAtTop
+                && (speed == ScrollFramePacer.DEFAULT_SPEED || !hasBackwardAction)
                 && supports(target,
                 AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_TO_POSITION.getId())) {
             Bundle args = new Bundle();
@@ -572,6 +574,32 @@ public class TopService extends AccessibilityService {
                 * getResources().getDisplayMetrics().heightPixels;
         return bounds.height() > bounds.width() / 2
                 && (long) bounds.width() * bounds.height() >= screenArea / 6;
+    }
+
+    private boolean collectionStartsAtTop(AccessibilityNodeInfo node) {
+        int firstRow = -1;
+        int firstTop = 0;
+        boolean ascending = false;
+        Rect bounds = new Rect();
+        for (int i = 0; i < node.getChildCount(); i++) {
+            AccessibilityNodeInfo child = node.getChild(i);
+            if (child == null || !child.isVisibleToUser()) continue;
+            AccessibilityNodeInfo.CollectionItemInfo item = child.getCollectionItemInfo();
+            if (item == null || item.getRowIndex() < 0) continue;
+            child.getBoundsInScreen(bounds);
+            if (bounds.isEmpty()) continue;
+            int row = item.getRowIndex();
+            if (firstRow < 0) {
+                firstRow = row;
+                firstTop = bounds.top;
+            } else if (row != firstRow && bounds.top != firstTop) {
+                if ((row > firstRow) != (bounds.top > firstTop)) return false;
+                ascending = true;
+            }
+        }
+        // One visible item or missing row metadata cannot establish direction.
+        // Relative backward scrolling remains available without assuming row 0.
+        return ascending;
     }
 
     private boolean supports(AccessibilityNodeInfo node, int id) {
