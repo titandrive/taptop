@@ -326,7 +326,19 @@ public class MainActivity extends Activity {
         status = addText(panel, "", 17, ink, true, 0, 4);
         status.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
         statusDetail = addText(panel, "", 13, muted, false, 0, 14);
-        access = text("Accessibility settings  ↗", 14, accent, true);
+        access = text("", 14, accent, true);
+        android.graphics.drawable.Drawable settingsIcon = getDrawable(R.drawable.ic_chevron_right).mutate();
+        settingsIcon.setTint(accent);
+        settingsIcon.setBounds(0, 0, dp(20), dp(20));
+        android.text.SpannableString settingsLabel =
+                new android.text.SpannableString("Accessibility settings  \uFFFC");
+        settingsLabel.setSpan(new android.text.style.ImageSpan(settingsIcon,
+                android.os.Build.VERSION.SDK_INT >= 29 ? android.text.style.ImageSpan.ALIGN_CENTER
+                        : android.text.style.ImageSpan.ALIGN_BOTTOM),
+                settingsLabel.length() - 1, settingsLabel.length(),
+                android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        access.setText(settingsLabel);
+        access.setContentDescription("Accessibility settings");
         access.setGravity(Gravity.CENTER);
         access.setMinHeight(dp(48));
         access.setBackground(ripple(surface, 14));
