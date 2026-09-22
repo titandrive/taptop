@@ -1,4 +1,4 @@
-package com.tiptop.app;
+package com.taptop.app;
 
 import android.app.Activity;
 import android.content.Intent;

@@ -6,7 +6,7 @@ Tap your chosen area to scroll to the top. Touch the screen to stop.
 
 Version **0.5.1** · Android **8.0+**
 
-[<img src="docs/assets/badge_obtainium.png" alt="Get it on Obtainium" height="80">](https://apps.obtainium.imranr.dev/redirect?r=obtainium%3A%2F%2Fapp%2F%257B%2522id%2522%253A%2522com.tiptop.app%2522%252C%2522url%2522%253A%2522https%253A%252F%252Fgithub.com%252Ftitandrive%252Ftaptop%2522%252C%2522author%2522%253A%2522TitanDrive%2522%252C%2522name%2522%253A%2522TapTop%2522%257D)
+[<img src="docs/assets/badge_obtainium.png" alt="Get it on Obtainium" height="80">](https://apps.obtainium.imranr.dev/redirect?r=obtainium%3A%2F%2Fapp%2F%257B%2522id%2522%253A%2522com.taptop.app%2522%252C%2522url%2522%253A%2522https%253A%252F%252Fgithub.com%252Ftitandrive%252Ftaptop%2522%252C%2522author%2522%253A%2522TitanDrive%2522%252C%2522name%2522%253A%2522TapTop%2522%257D)
 [<img src="docs/assets/badge_github.png" alt="Get APK from GitHub" height="80">](https://github.com/titandrive/taptop/releases/latest)
 
 ## Get started
@@ -48,12 +48,10 @@ Use **Send Intent**. Set the target to **Broadcast Receiver** in Tasker or **Bro
 
 | Field | Value |
 | --- | --- |
-| Toggle action | `com.tiptop.app.action.TOGGLE` |
-| Scroll action | `com.tiptop.app.action.SCROLL_TO_TOP` |
-| Package | `com.tiptop.app` |
-| Class | `com.tiptop.app.AutomationReceiver` |
-
-The Android package and automation identifiers remain `com.tiptop.app` so existing installations, settings, and automations keep working.
+| Toggle action | `com.taptop.app.action.TOGGLE` |
+| Scroll action | `com.taptop.app.action.SCROLL_TO_TOP` |
+| Package | `com.taptop.app` |
+| Class | `com.taptop.app.AutomationReceiver` |
 
 Choose one action and leave the remaining fields empty. Scrolling requires TapTop and its accessibility service to be enabled.
 

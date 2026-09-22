@@ -1,4 +1,4 @@
-package com.tiptop.app;
+package com.taptop.app;
 
 final class DragSpeed {
     private static final int[] DP_PER_SECOND = {180, 360, 720, 1440, 2160};

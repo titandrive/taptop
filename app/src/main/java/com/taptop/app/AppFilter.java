@@ -1,4 +1,4 @@
-package com.tiptop.app;
+package com.taptop.app;
 
 import android.content.SharedPreferences;
 import java.util.Collections;

@@ -11,7 +11,7 @@ dependencies {
 }
 
 android {
-    namespace 'com.tiptop.app'
+    namespace 'com.taptop.app'
     compileSdk 34
     buildFeatures {
         buildConfig true
@@ -32,7 +32,7 @@ android {
         }
     }
     defaultConfig {
-        applicationId 'com.tiptop.app'
+        applicationId 'com.taptop.app'
         minSdk 26
         targetSdk 34
         versionCode 3

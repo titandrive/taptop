@@ -1,4 +1,4 @@
-package com.tiptop.app;
+package com.taptop.app;
 
 import org.junit.Test;
 import java.util.Collections;
@@ -8,7 +8,7 @@ import java.util.Set;
 import static org.junit.Assert.*;
 
 public class AppFilterTest {
-    private final Set<String> selected = new HashSet<>(Arrays.asList("com.example.reader", "com.tiptop.app"));
+    private final Set<String> selected = new HashSet<>(Arrays.asList("com.example.reader", "com.taptop.app"));
 
     @Test public void allAppsIgnoresSavedLists() {
         assertTrue(AppFilter.allows(AppFilter.ALL, selected, "com.example.reader"));
@@ -28,10 +28,10 @@ public class AppFilterTest {
         assertFalse(AppFilter.allows(AppFilter.BLACKLIST, selected, null));
         assertFalse(AppFilter.allows(AppFilter.WHITELIST, selected, ""));
     }
-    @Test public void tiptopObeysSameRules() {
-        assertFalse(AppFilter.allows(AppFilter.BLACKLIST, selected, "com.tiptop.app"));
-        assertFalse(AppFilter.allows(AppFilter.WHITELIST, Collections.emptySet(), "com.tiptop.app"));
-        assertTrue(AppFilter.allows(AppFilter.WHITELIST, selected, "com.tiptop.app"));
+    @Test public void ownAppObeysSameRules() {
+        assertFalse(AppFilter.allows(AppFilter.BLACKLIST, selected, "com.taptop.app"));
+        assertFalse(AppFilter.allows(AppFilter.WHITELIST, Collections.emptySet(), "com.taptop.app"));
+        assertTrue(AppFilter.allows(AppFilter.WHITELIST, selected, "com.taptop.app"));
     }
     @Test public void modesKeepSeparateLists() {
         assertNotEquals(AppFilter.listKey(AppFilter.BLACKLIST), AppFilter.listKey(AppFilter.WHITELIST));

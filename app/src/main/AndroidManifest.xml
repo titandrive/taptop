@@ -36,11 +36,11 @@
         </activity>
         <receiver android:name=".AutomationReceiver" android:exported="true">
             <intent-filter>
-                <action android:name="com.tiptop.app.action.TOGGLE" />
-                <action android:name="com.tiptop.app.action.SCROLL_TO_TOP" />
+                <action android:name="com.taptop.app.action.TOGGLE" />
+                <action android:name="com.taptop.app.action.SCROLL_TO_TOP" />
             </intent-filter>
         </receiver>
-        <service android:name=".TipTopTileService" android:exported="true"
+        <service android:name=".TapTopTileService" android:exported="true"
             android:label="TapTop" android:icon="@drawable/ic_tile_taptop"
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
             <intent-filter>

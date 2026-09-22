@@ -1,4 +1,4 @@
-package com.tiptop.app;
+package com.taptop.app;
 
 import android.accessibilityservice.AccessibilityService;
 import android.accessibilityservice.GestureDescription;
@@ -31,10 +31,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class TopService extends AccessibilityService {
-    public static final String ACTION_UPDATE_APP_FILTER = "com.tiptop.app.UPDATE_APP_FILTER";
-    public static final String ACTION_UPDATE = "com.tiptop.app.UPDATE";
-    public static final String ACTION_REFRESH_APPEARANCE = "com.tiptop.app.REFRESH_APPEARANCE";
-    public static final String ACTION_SCROLL_TO_TOP = "com.tiptop.app.SCROLL_TO_TOP";
+    public static final String ACTION_UPDATE_APP_FILTER = "com.taptop.app.UPDATE_APP_FILTER";
+    public static final String ACTION_UPDATE = "com.taptop.app.UPDATE";
+    public static final String ACTION_REFRESH_APPEARANCE = "com.taptop.app.REFRESH_APPEARANCE";
+    public static final String ACTION_SCROLL_TO_TOP = "com.taptop.app.SCROLL_TO_TOP";
     public static volatile boolean connected = false;
     private static final List<Runnable> connectionListeners = new ArrayList<>();
 
@@ -158,7 +158,7 @@ public class TopService extends AccessibilityService {
     private void showBar() {
         if (windows == null) return;
         if (bar != null) { windows.removeView(bar); bar = null; }
-        if (!prefs.getBoolean("tiptop_enabled", true) || !currentAppAllowed()) return;
+        if (!prefs.getBoolean("taptop_enabled", true) || !currentAppAllowed()) return;
         View view = new View(this);
         applyBarAppearance(view);
         view.setContentDescription("Scroll to top");
@@ -211,7 +211,7 @@ public class TopService extends AccessibilityService {
     }
 
     private void scrollToTop() {
-        if (!prefs.getBoolean("tiptop_enabled", true)) return;
+        if (!prefs.getBoolean("taptop_enabled", true)) return;
         if (!currentAppAllowed()) {
             if (dragScroller != null) cancelDragOnTouch();
             stopNativeScroll("app excluded");
@@ -485,7 +485,7 @@ public class TopService extends AccessibilityService {
         // Switching back to All can restore a removed bar without recreating
         // an existing one or inspecting the foreground window.
         if (AppFilter.ALL.equals(AppFilter.mode(prefs))) {
-            if (bar == null && prefs.getBoolean("tiptop_enabled", true)) showBar();
+            if (bar == null && prefs.getBoolean("taptop_enabled", true)) showBar();
             return;
         }
         AccessibilityNodeInfo root = currentAppRoot();
@@ -498,7 +498,7 @@ public class TopService extends AccessibilityService {
         }
         if (!allowed) {
             if (bar != null) { windows.removeView(bar); bar = null; }
-        } else if (bar == null && prefs.getBoolean("tiptop_enabled", true)) {
+        } else if (bar == null && prefs.getBoolean("taptop_enabled", true)) {
             showBar();
         }
     }

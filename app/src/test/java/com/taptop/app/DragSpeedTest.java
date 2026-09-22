@@ -1,4 +1,4 @@
-package com.tiptop.app;
+package com.taptop.app;
 
 import org.junit.Test;
 import static org.junit.Assert.*;

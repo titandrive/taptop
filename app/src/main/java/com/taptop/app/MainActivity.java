@@ -1,4 +1,4 @@
-package com.tiptop.app;
+package com.taptop.app;
 
 import android.app.Activity;
 import android.app.AlertDialog;
@@ -47,7 +47,7 @@ public class MainActivity extends Activity {
     private TextView masterButton;
     private android.graphics.drawable.Drawable masterIcon;
     private final SharedPreferences.OnSharedPreferenceChangeListener settingChanged = (preferences, key) -> {
-        if ("tiptop_enabled".equals(key)) syncMasterButton();
+        if ("taptop_enabled".equals(key)) syncMasterButton();
     };
     private boolean dark;
     private int base, card, surface, ink, muted, accent, green;
@@ -241,7 +241,7 @@ public class MainActivity extends Activity {
         copyableInfo(body, "Toggle on/off action", ShortcutActions.ACTION_TOGGLE);
         copyableInfo(body, "Scroll to top action", ShortcutActions.ACTION_SCROLL_TO_TOP);
         copyableInfo(body, "Package", getPackageName());
-        copyableInfo(body, "Class", AutomationReceiver.class.getName());
+        copyableInfo(body, "Class", com.taptop.app.AutomationReceiver.class.getName());
         addText(body, "Scrolling uses your selected speed and requires TapTop and its accessibility service to be enabled. Toggle changes the same master switch as the app and tile.", 13, muted, false, 12, 0);
         ScrollView details = new ScrollView(this);
         details.setBackgroundColor(card);
@@ -317,8 +317,8 @@ public class MainActivity extends Activity {
         masterButton.setOnClickListener(v -> {
             if (!TopService.connected) { syncMasterButton(); return; }
             if (prefs.getBoolean("haptics", true)) Haptics.click(v);
-            prefs.edit().putBoolean("tiptop_enabled",
-                    !prefs.getBoolean("tiptop_enabled", true)).apply();
+            prefs.edit().putBoolean("taptop_enabled",
+                    !prefs.getBoolean("taptop_enabled", true)).apply();
             syncMasterButton();
             notifyService();
         });
@@ -399,7 +399,7 @@ public class MainActivity extends Activity {
                     : "TapTop cannot start. Open Accessibility settings below and enable TapTop under Installed apps.");
             return;
         }
-        if (!prefs.getBoolean("tiptop_enabled", true)) {
+        if (!prefs.getBoolean("taptop_enabled", true)) {
             status.setText("●  TapTop is off");
             status.setTextColor(muted);
             statusDetail.setText("Turn TapTop on to activate.");
@@ -413,7 +413,7 @@ public class MainActivity extends Activity {
     private void syncMasterButton() {
         if (masterButton == null) return;
         boolean ready = TopService.connected;
-        boolean enabled = ready && prefs.getBoolean("tiptop_enabled", true);
+        boolean enabled = ready && prefs.getBoolean("taptop_enabled", true);
         masterButton.setEnabled(ready);
         masterButton.setAlpha(ready ? 1f : .45f);
         String label = enabled ? "Stop TapTop" : "Start TapTop";

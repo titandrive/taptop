@@ -1,4 +1,4 @@
-package com.tiptop.app;
+package com.taptop.app;
 
 /** Limits native requests to roughly 60 per second, always on display frames. */
 final class ScrollFramePacer {
