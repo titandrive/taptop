@@ -35,7 +35,7 @@ import java.util.List;
 
 public class MainActivity extends Activity {
     static boolean foreground;
-    private static final String[] SPEED_LABELS = {"Slowest", "Slow", "Medium", "Fast", "Maximum"};
+    private static final String[] SPEED_LABELS = {"Slowest", "Slow", "Medium", "Fast", "Fastest"};
     private SharedPreferences prefs;
     private TextView status, statusDetail, access;
     private LinearLayout content;
@@ -226,8 +226,10 @@ public class MainActivity extends Activity {
         body.setPadding(dp(24), dp(4), dp(24), dp(16));
         addText(body, "How to use TipTop", 17, ink, true, 0, 8);
         addText(body, "Enable TipTop and its accessibility service to get started.\n\nTap the tap area to scroll to the top. Touch anywhere on the screen to stop.\n\nAdjust the scroll speed and tap area in the app. The tap area still works when the bar is hidden.\n\nUse the sun/moon button to change themes. Hold it to follow your system theme.", 14, muted, false, 0, 16);
-        addText(body, "App filters", 17, ink, true, 0, 8);
-        addText(body, "Choose All, Blacklist to exclude selected apps, or Whitelist to allow only selected apps. Excluded apps have no tap area and cannot be scrolled by shortcuts. Each list is saved separately.", 14, muted, false, 0, 16);
+        addText(body, "App filtering", 17, ink, true, 0, 8);
+        addText(body, "All: works in every app.\nBlacklist: works everywhere except selected apps.\nWhitelist: works only in selected apps. An empty whitelist disables it everywhere.", 14, muted, false, 0, 12);
+        addText(body, "Tap Choose blocked apps or Choose allowed apps to edit. Search by name; selected apps appear at the top.\n\nSelect all selects every app, even those hidden by search. Clear deselects everything. Done saves; Cancel discards changes.", 14, muted, false, 0, 12);
+        addText(body, "Each list is saved separately. Excluded apps have no tap area and cannot be scrolled by shortcuts or automation. New apps appear when you return to TipTop; select them to add them to a list.", 14, muted, false, 0, 16);
         addText(body, "Shortcuts", 17, ink, true, 0, 8);
         addText(body, "Long-press TipTop’s app icon to find Toggle TipTop and Scroll to top. You can also select them in apps that support app shortcuts, including launchers and gesture apps.", 14, muted, false, 0, 16);
         addText(body, "Quick Settings", 17, ink, true, 0, 8);
@@ -458,13 +460,23 @@ public class MainActivity extends Activity {
                 if (preview != null) preview.invalidate();
             });
         }
-        parent.addView(seek, new LinearLayout.LayoutParams(-1, dp(48)));
         if (speed) {
-            LinearLayout limits = row();
-            limits.addView(text("Slowest", 11, muted, false), new LinearLayout.LayoutParams(0, -2, 1));
-            limits.addView(text("Maximum", 11, muted, false));
-            parent.addView(limits);
+            LinearLayout speedRow = row();
+            ImageView turtle = new ImageView(this);
+            turtle.setImageResource(R.drawable.ic_turtle);
+            turtle.setImageTintList(ColorStateList.valueOf(accent));
+            turtle.setContentDescription("Slowest");
+            speedRow.addView(turtle, new LinearLayout.LayoutParams(dp(24), dp(24)));
+            speedRow.addView(seek, new LinearLayout.LayoutParams(0, dp(48), 1));
+            ImageView rabbit = new ImageView(this);
+            rabbit.setImageResource(R.drawable.ic_rabbit);
+            rabbit.setImageTintList(ColorStateList.valueOf(accent));
+            rabbit.setContentDescription("Fastest");
+            speedRow.addView(rabbit, new LinearLayout.LayoutParams(dp(24), dp(24)));
+            parent.addView(speedRow);
             space(parent, 10);
+        } else {
+            parent.addView(seek, new LinearLayout.LayoutParams(-1, dp(48)));
         }
     }
 

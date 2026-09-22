@@ -17,12 +17,21 @@ Version **0.5.1** · Android **8.0+**
 
 ## Make it yours
 
-- **App filters:** use TipTop everywhere, block selected apps, or allow only selected apps.
-- **Five speeds:** Slowest, Slow, Medium, Fast, Maximum.
+- **Five speeds:** Slowest, Slow, Medium, Fast, Fastest.
 - **Adjustable tap area:** change its width, height, position, and top offset.
 - **Optional visible bar:** choose a color and opacity, or hide it. The hidden area still works; a dotted outline helps you adjust it inside TipTop.
 - **Light and dark themes:** Catppuccin Latte and Macchiato. Tap the sun/moon button to switch; hold it to follow the system.
 - **Optional haptics:** feedback when tapping the area or the enable/disable button.
+
+## App filtering
+
+- **All:** TipTop works in every app.
+- **Blacklist:** TipTop works everywhere except the apps you select.
+- **Whitelist:** TipTop works only in the apps you select. An empty list disables it everywhere.
+
+Tap **Choose blocked apps** or **Choose allowed apps** to edit the list. Search by app name; selected apps appear in their own section at the top. **Select all** selects every app, including those hidden by search. **Clear** deselects everything. Tap **Done** to save or **Cancel** to discard changes.
+
+Both lists are saved separately. Excluded apps have no tap area and cannot be scrolled by shortcuts or automation. Newly installed apps appear when you return to TipTop; select them if you want to add them to a list.
 
 ## Shortcuts
 
