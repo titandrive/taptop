@@ -4,7 +4,7 @@
 
 Tap your chosen area to scroll to the top. Touch the screen to stop.
 
-Version **0.5.0** · Android **8.0+**
+Version **0.5.1** · Android **8.0+**
 
 [<img src="docs/assets/badge_obtainium.png" alt="Get it on Obtainium" height="80">](https://apps.obtainium.imranr.dev/redirect?r=obtainium%3A%2F%2Fapp%2F%257B%2522id%2522%253A%2522com.tiptop.app%2522%252C%2522url%2522%253A%2522https%253A%252F%252Fgithub.com%252Ftitandrive%252Ftiptop%2522%252C%2522author%2522%253A%2522TitanDrive%2522%252C%2522name%2522%253A%2522TipTop%2522%257D)
 [<img src="docs/assets/badge_github.png" alt="Get APK from GitHub" height="80">](https://github.com/titandrive/tiptop/releases/latest/download/TipTop.apk)
