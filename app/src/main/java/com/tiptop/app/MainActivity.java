@@ -3,6 +3,7 @@ package com.tiptop.app;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.ComponentName;
+import android.content.ActivityNotFoundException;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Intent;
@@ -15,10 +16,12 @@ import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.RippleDrawable;
 import android.os.Bundle;
+import android.net.Uri;
 import android.provider.Settings;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.LinearLayout;
+import android.widget.ImageView;
 import android.widget.FrameLayout;
 import android.widget.ScrollView;
 import android.widget.SeekBar;
@@ -116,8 +119,32 @@ public class MainActivity extends Activity {
         colorPicker(barAppearance);
         slider(barAppearance, "Opacity", "opacity", 15, 100, 70);
 
-        TextView footer = addText(content, "Made for a little less scrolling.\nNo internet access. No saved screen content.", 12, muted, false, 24, 0);
-        footer.setGravity(Gravity.CENTER);
+        LinearLayout github = row();
+        github.setGravity(Gravity.CENTER);
+        github.setMinimumHeight(dp(48));
+        ImageView githubLogo = new ImageView(this);
+        githubLogo.setImageResource(R.drawable.ic_github);
+        githubLogo.setImageTintList(ColorStateList.valueOf(accent));
+        githubLogo.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        LinearLayout.LayoutParams logoParams = new LinearLayout.LayoutParams(dp(20), dp(20));
+        logoParams.setMarginEnd(dp(8));
+        github.addView(githubLogo, logoParams);
+        github.addView(text("GitHub", 14, accent, true));
+        LinearLayout.LayoutParams githubParams = new LinearLayout.LayoutParams(-1, -2);
+        githubParams.topMargin = dp(24);
+        content.addView(github, githubParams);
+        github.setBackground(ripple(base, 14));
+        github.setContentDescription("Open TipTop on GitHub");
+        github.setAccessibilityDelegate(buttonDelegate());
+        github.setOnClickListener(v -> {
+            try {
+                startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/titandrive/tiptop")));
+            } catch (ActivityNotFoundException e) {
+                Toast.makeText(this, "No app available to open GitHub", Toast.LENGTH_SHORT).show();
+            }
+        });
+        TextView version = addText(content, "Version " + BuildConfig.VERSION_NAME, 12, muted, false, 4, 0);
+        version.setGravity(Gravity.CENTER);
         if (state != null) scroll.post(() -> scroll.scrollTo(0, state.getInt("scroll_y")));
     }
 
@@ -130,7 +157,7 @@ public class MainActivity extends Activity {
         TextView icon = text("ⓘ", 28, accent, false);
         icon.setGravity(Gravity.CENTER);
         icon.setBackground(ripple(surface, 20));
-        icon.setContentDescription("Shortcuts and automation info");
+        icon.setContentDescription("TipTop help and info");
         icon.setAccessibilityDelegate(buttonDelegate());
         icon.setOnClickListener(v -> showShortcutInfo());
         row.addView(icon, new LinearLayout.LayoutParams(dp(60), dp(60)));
@@ -141,8 +168,10 @@ public class MainActivity extends Activity {
     private void showShortcutInfo() {
         LinearLayout body = column();
         body.setPadding(dp(24), dp(4), dp(24), dp(16));
-        addText(body, "Gesture shortcuts", 17, ink, true, 0, 8);
-        addText(body, "In your gesture app, choose an app shortcut, then TipTop. Select Toggle TipTop or Scroll to top. These also appear when you long-press TipTop’s app icon.", 14, muted, false, 0, 16);
+        addText(body, "How to use TipTop", 17, ink, true, 0, 8);
+        addText(body, "Enable TipTop and its accessibility service to get started.\n\nTap the tap area to scroll to the top. Touch anywhere on the screen to stop.\n\nAdjust the scroll speed and tap area in the app. The tap area still works when the bar is hidden.", 14, muted, false, 0, 16);
+        addText(body, "Shortcuts", 17, ink, true, 0, 8);
+        addText(body, "Long-press TipTop’s app icon to find Toggle TipTop and Scroll to top. You can also select them in apps that support app shortcuts, including launchers and gesture apps.", 14, muted, false, 0, 16);
         addText(body, "Quick Settings", 17, ink, true, 0, 8);
         addText(body, "Edit your Quick Settings panel and add the TipTop tile to toggle TipTop on or off.", 14, muted, false, 0, 16);
         addText(body, "Tasker & MacroDroid", 17, ink, true, 0, 8);
@@ -157,7 +186,7 @@ public class MainActivity extends Activity {
         details.setBackgroundColor(card);
         if (android.os.Build.VERSION.SDK_INT >= 29) details.setForceDarkAllowed(false);
         details.addView(body);
-        TextView title = text("Shortcuts & automation", 20, ink, true);
+        TextView title = text("TipTop guide", 20, ink, true);
         title.setPadding(dp(24), dp(24), dp(24), dp(16));
         AlertDialog dialog = new AlertDialog.Builder(this)
                 .setCustomTitle(title)
@@ -322,7 +351,23 @@ public class MainActivity extends Activity {
         caption.setBackground(shape(alpha(accent, dark ? 25 : 18), 8));
         heading.addView(caption);
         parent.addView(heading);
-        SeekBar seek = new SeekBar(this);
+        SeekBar seek = speed ? new SeekBar(this) {
+            private final Paint tickPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+
+            @Override protected synchronized void onDraw(Canvas canvas) {
+                super.onDraw(canvas);
+                int steps = getMax();
+                if (steps == 0) return;
+                float trackWidth = getWidth() - getPaddingLeft() - getPaddingRight();
+                for (int i = 0; i <= steps; i++) {
+                    float fraction = (float) i / steps;
+                    if (getLayoutDirection() == View.LAYOUT_DIRECTION_RTL) fraction = 1 - fraction;
+                    tickPaint.setColor(i <= getProgress() ? accent : surface);
+                    canvas.drawCircle(getPaddingLeft() + trackWidth * fraction,
+                            getHeight() / 2f, dp(3), tickPaint);
+                }
+            }
+        } : new SeekBar(this);
         seek.setMax(max - min);
         seek.setProgress(value - min);
         seek.setContentDescription(title + ": " + format(key, value));
