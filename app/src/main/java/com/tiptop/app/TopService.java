@@ -219,8 +219,9 @@ public class TopService extends AccessibilityService {
                 prefs.getInt("scroll_speed", ScrollFramePacer.DEFAULT_SPEED));
         boolean hasBackwardAction = target != null
                 && supports(target, AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD);
-        if ((speed < ScrollFramePacer.DEFAULT_SPEED || isWebContent(target)) && hasBackwardAction) {
-            startContinuousDrag(target, speed);
+        boolean webContent = hasBackwardAction && isWebContent(target);
+        if ((speed < ScrollFramePacer.DEFAULT_SPEED || webContent) && hasBackwardAction) {
+            startContinuousDrag(target, speed, webContent);
             return;
         }
         // Maximum retains the target app's existing native animation.
@@ -274,7 +275,7 @@ public class TopService extends AccessibilityService {
         flingOnce(target);
     }
 
-    private void startContinuousDrag(AccessibilityNodeInfo target, int speed) {
+    private void startContinuousDrag(AccessibilityNodeInfo target, int speed, boolean webContent) {
         Rect bounds = new Rect();
         target.getBoundsInScreen(bounds);
         if (!bounds.intersect(0, 0, getResources().getDisplayMetrics().widthPixels,
@@ -285,19 +286,25 @@ public class TopService extends AccessibilityService {
         scrollEvents = scrollRequests = 0;
         scrollDistance = maxRequestGap = maxActionDuration = 0;
         dragScroller = new ContinuousDragScroller(this, bounds,
-                getResources().getDisplayMetrics().density, speed, isWebContent(target), cancelled -> {
+                getResources().getDisplayMetrics().density, speed, webContent, cancelled -> {
                     dragScroller = null;
                     if (cancelled) lastDragCancellation = SystemClock.uptimeMillis();
                     stopNativeScroll(cancelled ? "drag cancelled" : "drag finished");
                 });
-        logScrollMode("continuous drag speed=" + speed, target);
+        logScrollMode("continuous drag speed=" + speed + "; web=" + webContent, target);
         if (bar != null) applyBarAppearance(bar);
         handler.postDelayed(scrollWatchdog, 250);
         dragScroller.start();
     }
 
     private boolean isWebContent(AccessibilityNodeInfo node) {
-        return node != null && "android.webkit.WebView".equals(String.valueOf(node.getClassName()));
+        // Scrollable HTML elements are exposed as generic Views underneath the
+        // WebView. They need the same single-pointer gestures as its root.
+        for (AccessibilityNodeInfo current = node; current != null; current = current.getParent()) {
+            if ("android.webkit.WebView".contentEquals(
+                    current.getClassName() == null ? "" : current.getClassName())) return true;
+        }
+        return false;
     }
 
     private void advanceNativeScroll(long frameTimeNanos) {
