@@ -214,11 +214,12 @@ public class TopService extends AccessibilityService {
         if (dragScroller != null) { stopNativeScroll("bar tap"); return; }
         if (movingList != null) { stopNativeScroll("bar tap"); return; }
         AccessibilityNodeInfo target = findScrollable();
+        logScrollMode("selected target", target);
         int speed = ScrollFramePacer.clampSpeed(
                 prefs.getInt("scroll_speed", ScrollFramePacer.DEFAULT_SPEED));
         boolean hasBackwardAction = target != null
                 && supports(target, AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD);
-        if (speed < ScrollFramePacer.DEFAULT_SPEED && hasBackwardAction) {
+        if ((speed < ScrollFramePacer.DEFAULT_SPEED || isWebContent(target)) && hasBackwardAction) {
             startContinuousDrag(target, speed);
             return;
         }
@@ -284,7 +285,7 @@ public class TopService extends AccessibilityService {
         scrollEvents = scrollRequests = 0;
         scrollDistance = maxRequestGap = maxActionDuration = 0;
         dragScroller = new ContinuousDragScroller(this, bounds,
-                getResources().getDisplayMetrics().density, speed, cancelled -> {
+                getResources().getDisplayMetrics().density, speed, isWebContent(target), cancelled -> {
                     dragScroller = null;
                     if (cancelled) lastDragCancellation = SystemClock.uptimeMillis();
                     stopNativeScroll(cancelled ? "drag cancelled" : "drag finished");
@@ -293,6 +294,10 @@ public class TopService extends AccessibilityService {
         if (bar != null) applyBarAppearance(bar);
         handler.postDelayed(scrollWatchdog, 250);
         dragScroller.start();
+    }
+
+    private boolean isWebContent(AccessibilityNodeInfo node) {
+        return node != null && "android.webkit.WebView".equals(String.valueOf(node.getClassName()));
     }
 
     private void advanceNativeScroll(long frameTimeNanos) {
@@ -500,6 +505,8 @@ public class TopService extends AccessibilityService {
         while (!queue.isEmpty()) {
             AccessibilityNodeInfo node = queue.removeFirst();
             int depth = depths.removeFirst();
+            if (android.os.Build.VERSION.SDK_INT >= 34 && node.isAccessibilityDataSensitive())
+                Log.d("TipTopScroll", "accessibility-sensitive node: " + node.getClassName());
             if (!node.isVisibleToUser()) continue;
             node.getBoundsInScreen(bounds);
             long area = (long) bounds.width() * bounds.height();

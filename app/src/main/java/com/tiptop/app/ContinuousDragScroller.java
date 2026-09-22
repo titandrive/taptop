@@ -6,7 +6,7 @@ import android.graphics.Path;
 import android.graphics.Rect;
 import android.util.Log;
 
-/** Keeps a drag active across pointer handovers, without releasing into a fling. */
+/** Uses held pointer handovers for native lists, single-finger strokes for web content. */
 final class ContinuousDragScroller {
     interface Listener { void onStopped(boolean cancelled); }
 
@@ -14,6 +14,7 @@ final class ContinuousDragScroller {
     private final Listener listener;
     private final float x, startY, endY;
     private final long duration;
+    private final boolean singlePointer;
     private GestureDescription.StrokeDescription heldStroke;
     private boolean stopping;
     private boolean finished;
@@ -22,8 +23,16 @@ final class ContinuousDragScroller {
 
     ContinuousDragScroller(AccessibilityService service, Rect bounds, float density,
             int speed, Listener listener) {
+        this(service, bounds, density, speed, false, listener);
+    }
+
+    ContinuousDragScroller(AccessibilityService service, Rect bounds, float density,
+            int speed, boolean singlePointer, Listener listener) {
         this.service = service;
         this.listener = listener;
+        // Web content can interpret overlapping pointers as a pinch and stop
+        // panning. Finish each single-finger stroke before starting the next.
+        this.singlePointer = singlePointer;
         float velocity = DragSpeed.pixelsPerSecond(speed, density);
         float distance = Math.min(bounds.height() * .60f, velocity * .8f);
         x = bounds.centerX();
@@ -68,14 +77,14 @@ final class ContinuousDragScroller {
         // then lift the old one at t=2, keeping a pointer down throughout.
         long startTime = heldStroke == null ? 0 : 1;
         GestureDescription.StrokeDescription next =
-                new GestureDescription.StrokeDescription(drag, startTime, duration, true);
+                new GestureDescription.StrokeDescription(drag, startTime, duration, !singlePointer);
         builder.addStroke(next);
         inFlight = true;
         if (!service.dispatchGesture(builder.build(), new AccessibilityService.GestureResultCallback() {
             @Override public void onCompleted(GestureDescription gesture) {
                 if (finished) return;
                 inFlight = false;
-                heldStroke = next;
+                heldStroke = singlePointer ? null : next;
                 completedSegments++;
                 if (completedSegments <= 2 || completedSegments % 10 == 0)
                     Log.d("TipTopScroll", "drag segments completed=" + completedSegments);

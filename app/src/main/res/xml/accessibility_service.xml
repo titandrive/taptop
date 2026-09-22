@@ -1,7 +1,9 @@
+<!-- Deliver progress immediately: batching can hide continuous WebView motion
+     long enough for the no-progress watchdog to stop a valid scroll. -->
 <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
     android:accessibilityEventTypes="typeWindowStateChanged|typeWindowsChanged|typeViewScrolled"
     android:accessibilityFeedbackType="feedbackGeneric"
-    android:notificationTimeout="100"
+    android:notificationTimeout="0"
     android:canRetrieveWindowContent="true"
     android:canPerformGestures="true"
     android:accessibilityFlags="flagRetrieveInteractiveWindows"
