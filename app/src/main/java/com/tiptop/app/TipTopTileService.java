@@ -57,11 +57,11 @@ public final class TipTopTileService extends TileService {
         Tile tile = getQsTile();
         if (tile == null) return;
         boolean enabled = prefs.getBoolean("tiptop_enabled", true);
-        tile.setLabel("TipTop");
+        tile.setLabel("TapTop");
         tile.setState(!TopService.connected ? Tile.STATE_UNAVAILABLE
                 : enabled ? Tile.STATE_ACTIVE : Tile.STATE_INACTIVE);
-        tile.setContentDescription(!TopService.connected ? "TipTop: accessibility required"
-                : enabled ? "TipTop on" : "TipTop off");
+        tile.setContentDescription(!TopService.connected ? "TapTop: accessibility required"
+                : enabled ? "TapTop on" : "TapTop off");
         if (Build.VERSION.SDK_INT >= 29) tile.setSubtitle(!TopService.connected ? "Accessibility required" : enabled ? "On" : "Off");
         tile.updateTile();
     }

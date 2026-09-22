@@ -96,7 +96,7 @@ final class ContinuousDragScroller {
                 heldStroke = next;
                 completedSegments++;
                 if (completedSegments <= 2 || completedSegments % 10 == 0)
-                    Log.d("TipTopScroll", "drag segments completed=" + completedSegments
+                    Log.d("TapTopScroll", "drag segments completed=" + completedSegments
                             + "; durationMs=" + duration + "; callbackOverheadMs="
                             + (SystemClock.uptimeMillis() - dispatchedAt - duration - startTime));
                 dispatchNext();

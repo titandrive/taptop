@@ -170,7 +170,7 @@ public class TopService extends AccessibilityService {
                 // touch should interrupt our own ongoing injected movement.
                 if (dragScroller != null
                         && event.getDeviceId() != KeyCharacterMap.VIRTUAL_KEYBOARD) {
-                    Log.d("TipTopScroll", "physical screen touch: cancel drag immediately");
+                    Log.d("TapTopScroll", "physical screen touch: cancel drag immediately");
                     cancelDragOnTouch();
                 }
                 return true;
@@ -365,7 +365,7 @@ public class TopService extends AccessibilityService {
         if (choreographer != null) choreographer.removeFrameCallback(advanceScroll);
         handler.removeCallbacks(scrollWatchdog);
         framePacer.reset();
-        if (movingList != null) Log.d("TipTopScroll", "native stopped: " + reason
+        if (movingList != null) Log.d("TapTopScroll", "native stopped: " + reason
                 + "; events=" + scrollEvents + "; distance=" + scrollDistance
                 + "; elapsed=" + (SystemClock.uptimeMillis() - scrollStarted)
                 + "; requests=" + scrollRequests + "; maxGapMs=" + maxRequestGap
@@ -447,12 +447,12 @@ public class TopService extends AccessibilityService {
         // momentum. Leave the list touchable so the user can stop it normally.
         if (!dispatchGesture(gesture, new GestureResultCallback() {
             @Override public void onCompleted(GestureDescription description) {
-                Log.d("TipTopScroll", "fling released; app controls momentum");
+                Log.d("TapTopScroll", "fling released; app controls momentum");
             }
             @Override public void onCancelled(GestureDescription description) {
-                Log.d("TipTopScroll", "fling cancelled");
+                Log.d("TapTopScroll", "fling cancelled");
             }
-        }, null)) Log.d("TipTopScroll", "fling rejected");
+        }, null)) Log.d("TapTopScroll", "fling rejected");
     }
 
     private void playTapFeedback(View view) {
@@ -536,7 +536,7 @@ public class TopService extends AccessibilityService {
             AccessibilityNodeInfo node = queue.removeFirst();
             int depth = depths.removeFirst();
             if (android.os.Build.VERSION.SDK_INT >= 34 && node.isAccessibilityDataSensitive())
-                Log.d("TipTopScroll", "accessibility-sensitive node: " + node.getClassName());
+                Log.d("TapTopScroll", "accessibility-sensitive node: " + node.getClassName());
             if (!node.isVisibleToUser()) continue;
             node.getBoundsInScreen(bounds);
             long area = (long) bounds.width() * bounds.height();
@@ -619,7 +619,7 @@ public class TopService extends AccessibilityService {
     }
     private void logScrollMode(String mode, AccessibilityNodeInfo node) {
         // Diagnostic metadata only; never log list text or screen content.
-        Log.d("TipTopScroll", mode + (node == null ? ": no target" :
+        Log.d("TapTopScroll", mode + (node == null ? ": no target" :
                 ": " + node.getPackageName() + " / " + node.getClassName()));
     }
     private int dp(int n) { return (int)(n * getResources().getDisplayMetrics().density + .5f); }

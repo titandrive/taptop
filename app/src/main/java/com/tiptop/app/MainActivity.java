@@ -55,7 +55,7 @@ public class MainActivity extends Activity {
     @Override public void onCreate(Bundle state) {
         prefs = getSharedPreferences("settings", MODE_PRIVATE);
         dark = ThemeColors.isDark(prefs, getResources().getConfiguration());
-        setTheme(dark ? R.style.Theme_TipTop_Dark : R.style.Theme_TipTop_Light);
+        setTheme(dark ? R.style.Theme_TapTop_Dark : R.style.Theme_TapTop_Light);
         super.onCreate(state);
         // Official Catppuccin Macchiato / Latte palette.
         base = dark ? 0xff24273a : 0xffeff1f5;
@@ -89,7 +89,7 @@ public class MainActivity extends Activity {
         toggle(behavior, "Haptic feedback", "Gentle feedback when you touch the tap zone", "haptics", true);
         divider(behavior);
         slider(behavior, "Scroll speed", "scroll_speed", 0, 4, 4);
-        addText(behavior, "Choose how fast TipTap scrolls to the top.", 13, muted, false, 0, 4);
+        addText(behavior, "Choose how fast TapTop scrolls to the top.", 13, muted, false, 0, 4);
 
         buildAppFilter();
 
@@ -132,11 +132,11 @@ public class MainActivity extends Activity {
         githubParams.topMargin = dp(8);
         content.addView(github, githubParams);
         github.setBackground(ripple(base, 14));
-        github.setContentDescription("Open TipTop on GitHub");
+        github.setContentDescription("Open TapTop on GitHub");
         github.setAccessibilityDelegate(buttonDelegate());
         github.setOnClickListener(v -> {
             try {
-                startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/titandrive/tiptop")));
+                startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/titandrive/taptop")));
             } catch (ActivityNotFoundException e) {
                 Toast.makeText(this, "No app available to open GitHub", Toast.LENGTH_SHORT).show();
             }
@@ -163,7 +163,7 @@ public class MainActivity extends Activity {
             String mode = AppFilter.mode(prefs);
             boolean all = AppFilter.ALL.equals(mode);
             int count = prefs.getStringSet(AppFilter.listKey(mode), java.util.Collections.emptySet()).size();
-            description.setText(all ? "TipTop works in all apps."
+            description.setText(all ? "TapTop works in all apps."
                     : AppFilter.BLACKLIST.equals(mode) ? "Works in all apps except those you select."
                     : "Works only in the apps you select.");
             manage.setVisibility(all ? View.INVISIBLE : View.VISIBLE);
@@ -188,7 +188,7 @@ public class MainActivity extends Activity {
     private void buildHeader() {
         LinearLayout row = row();
         LinearLayout words = column();
-        addText(words, "TipTop", 36, ink, true, 0, 2);
+        addText(words, "TapTop", 36, ink, true, 0, 2);
         row.addView(words, new LinearLayout.LayoutParams(0, -2, 1));
         ImageButton theme = new ImageButton(this);
         theme.setImageResource(dark ? R.drawable.ic_sun : R.drawable.ic_moon);
@@ -213,7 +213,7 @@ public class MainActivity extends Activity {
         TextView icon = text("ⓘ", 24, muted, false);
         icon.setGravity(Gravity.CENTER);
         icon.setBackground(ripple(base, 14));
-        icon.setContentDescription("TipTop help and info");
+        icon.setContentDescription("TapTop help and info");
         icon.setAccessibilityDelegate(buttonDelegate());
         icon.setOnClickListener(v -> showShortcutInfo());
         row.addView(icon, new LinearLayout.LayoutParams(dp(48), dp(48)));
@@ -225,16 +225,16 @@ public class MainActivity extends Activity {
     private void showShortcutInfo() {
         LinearLayout body = column();
         body.setPadding(dp(24), dp(4), dp(24), dp(16));
-        addText(body, "How to use TipTop", 17, ink, true, 0, 8);
-        addText(body, "Enable TipTop and its accessibility service to get started.\n\nTap the tap zone to scroll to the top. Touch anywhere on the screen to stop.\n\nAdjust the scroll speed and tap zone in the app. The tap zone still works when the bar is hidden.\n\nUse the sun/moon button to change themes. Hold it to follow your system theme.", 14, muted, false, 0, 16);
+        addText(body, "How to use TapTop", 17, ink, true, 0, 8);
+        addText(body, "Enable TapTop and its accessibility service to get started.\n\nTap the tap zone to scroll to the top. Touch anywhere on the screen to stop.\n\nAdjust the scroll speed and tap zone in the app. The tap zone still works when the bar is hidden.\n\nUse the sun/moon button to change themes. Hold it to follow your system theme.", 14, muted, false, 0, 16);
         addText(body, "App filtering", 17, ink, true, 0, 8);
         addText(body, "All: works in every app.\nBlacklist: works everywhere except selected apps.\nWhitelist: works only in selected apps. An empty whitelist disables it everywhere.", 14, muted, false, 0, 12);
         addText(body, "Tap Choose blocked apps or Choose allowed apps to edit. Search by name; selected apps appear at the top.\n\nSelect all selects every app, even those hidden by search. Clear deselects everything. Done saves; Cancel discards changes.", 14, muted, false, 0, 12);
-        addText(body, "Each list is saved separately. Excluded apps have no tap zone and cannot be scrolled by shortcuts or automation. New apps appear when you return to TipTop; select them to add them to a list.", 14, muted, false, 0, 16);
+        addText(body, "Each list is saved separately. Excluded apps have no tap zone and cannot be scrolled by shortcuts or automation. New apps appear when you return to TapTop; select them to add them to a list.", 14, muted, false, 0, 16);
         addText(body, "Shortcuts", 17, ink, true, 0, 8);
-        addText(body, "Long-press TipTop’s app icon to find Toggle TipTop and Scroll to top. You can also select them in apps that support app shortcuts, including launchers and gesture apps.", 14, muted, false, 0, 16);
+        addText(body, "Long-press TapTop’s app icon to find Toggle TapTop and Scroll to top. You can also select them in apps that support app shortcuts, including launchers and gesture apps.", 14, muted, false, 0, 16);
         addText(body, "Quick Settings", 17, ink, true, 0, 8);
-        addText(body, "Edit your Quick Settings panel and add the TipTop tile to toggle TipTop on or off.", 14, muted, false, 0, 16);
+        addText(body, "Edit your Quick Settings panel and add the TapTop tile to toggle TapTop on or off.", 14, muted, false, 0, 16);
         addText(body, "Tasker & MacroDroid", 17, ink, true, 0, 8);
         addText(body, "Choose Send Intent. Set the target to Broadcast Receiver in Tasker, or Broadcast in MacroDroid. Use one action below with the package and class shown. Leave other fields empty.", 14, muted, false, 0, 8);
         addText(body, "Tap a field to copy it.", 13, accent, false, 0, 12);
@@ -242,12 +242,12 @@ public class MainActivity extends Activity {
         copyableInfo(body, "Scroll to top action", ShortcutActions.ACTION_SCROLL_TO_TOP);
         copyableInfo(body, "Package", getPackageName());
         copyableInfo(body, "Class", AutomationReceiver.class.getName());
-        addText(body, "Scrolling uses your selected speed and requires TipTop and its accessibility service to be enabled. Toggle changes the same master switch as the app and tile.", 13, muted, false, 12, 0);
+        addText(body, "Scrolling uses your selected speed and requires TapTop and its accessibility service to be enabled. Toggle changes the same master switch as the app and tile.", 13, muted, false, 12, 0);
         ScrollView details = new ScrollView(this);
         details.setBackgroundColor(card);
         if (android.os.Build.VERSION.SDK_INT >= 29) details.setForceDarkAllowed(false);
         details.addView(body);
-        TextView title = text("TipTop guide", 20, ink, true);
+        TextView title = text("TapTop guide", 20, ink, true);
         title.setPadding(dp(24), dp(24), dp(24), dp(16));
         AlertDialog dialog = new AlertDialog.Builder(this)
                 .setCustomTitle(title)
@@ -395,17 +395,17 @@ public class MainActivity extends Activity {
             status.setText(enabledInSettings ? "●  Accessibility is not connected" : "●  Accessibility is off");
             status.setTextColor(dark ? 0xffed8796 : 0xffd20f39);
             statusDetail.setText(enabledInSettings
-                    ? "TipTop cannot start yet. If this persists, turn its accessibility service off and on in Accessibility settings below."
-                    : "TipTop cannot start. Open Accessibility settings below and enable TipTop under Installed apps.");
+                    ? "TapTop cannot start yet. If this persists, turn its accessibility service off and on in Accessibility settings below."
+                    : "TapTop cannot start. Open Accessibility settings below and enable TapTop under Installed apps.");
             return;
         }
         if (!prefs.getBoolean("tiptop_enabled", true)) {
-            status.setText("●  TipTop is off");
+            status.setText("●  TapTop is off");
             status.setTextColor(muted);
-            statusDetail.setText("Turn TipTap on to activate.");
+            statusDetail.setText("Turn TapTop on to activate.");
             return;
         }
-        status.setText("●  TipTop is active");
+        status.setText("●  TapTop is active");
         status.setTextColor(green);
         statusDetail.setText("Touch the tap zone to scroll to the top.");
     }
@@ -416,7 +416,7 @@ public class MainActivity extends Activity {
         boolean enabled = ready && prefs.getBoolean("tiptop_enabled", true);
         masterButton.setEnabled(ready);
         masterButton.setAlpha(ready ? 1f : .45f);
-        String label = enabled ? "Stop TipTop" : "Start TipTop";
+        String label = enabled ? "Stop TapTop" : "Start TapTop";
         android.graphics.drawable.Drawable icon = getDrawable(
                 enabled ? R.drawable.ic_stop : R.drawable.ic_start).mutate();
         icon.setTint(enabled ? base : accent);

@@ -15,7 +15,7 @@ final class ShortcutActions {
         SharedPreferences prefs = context.getSharedPreferences("settings", Context.MODE_PRIVATE);
         if (ACTION_TOGGLE.equals(action)) {
             if (!TopService.connected) {
-                Toast.makeText(context, "Enable TipTop in accessibility settings first", Toast.LENGTH_SHORT).show();
+                Toast.makeText(context, "Enable TapTop in accessibility settings first", Toast.LENGTH_SHORT).show();
                 return;
             }
             prefs.edit().putBoolean("tiptop_enabled",
@@ -23,9 +23,9 @@ final class ShortcutActions {
             context.sendBroadcast(new Intent(TopService.ACTION_UPDATE).setPackage(context.getPackageName()));
         } else if (ACTION_SCROLL_TO_TOP.equals(action)) {
             if (!TopService.connected) {
-                Toast.makeText(context, "Enable TipTop in accessibility settings first", Toast.LENGTH_SHORT).show();
+                Toast.makeText(context, "Enable TapTop in accessibility settings first", Toast.LENGTH_SHORT).show();
             } else if (!prefs.getBoolean("tiptop_enabled", true)) {
-                Toast.makeText(context, "Turn TipTop on first", Toast.LENGTH_SHORT).show();
+                Toast.makeText(context, "Turn TapTop on first", Toast.LENGTH_SHORT).show();
             } else {
                 context.sendBroadcast(new Intent(TopService.ACTION_SCROLL_TO_TOP).setPackage(context.getPackageName()));
             }

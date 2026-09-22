@@ -55,7 +55,7 @@ final class AppPickerDialog {
             cachedApps = loaded;
             return loaded;
         });
-        new Thread(appLoad, "TipTop-app-catalog").start();
+        new Thread(appLoad, "TapTop-app-catalog").start();
     }
 
     static void show(Activity activity, SharedPreferences prefs, String mode,
@@ -246,12 +246,12 @@ final class AppPickerDialog {
             } catch (ExecutionException e) {
                 activity.runOnUiThread(() -> {
                     if (!activity.isDestroyed() && dialog.isShowing() && all.isEmpty())
-                        count.setText("Couldn’t load apps. Close and reopen TipTop to retry.");
+                        count.setText("Couldn’t load apps. Close and reopen TapTop to retry.");
                 });
             }
         };
         if (pending.isDone()) populate.run();
-        else new Thread(populate, "TipTop-app-picker").start();
+        else new Thread(populate, "TapTop-app-picker").start();
     }
 
     private static List<Entry> loadApps(PackageManager packages, Set<String> saved) {

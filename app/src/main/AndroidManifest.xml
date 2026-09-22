@@ -10,7 +10,7 @@
             <category android:name="android.intent.category.HOME" />
         </intent>
     </queries>
-    <application android:label="TipTop" android:icon="@mipmap/ic_launcher" android:theme="@style/Theme.TipTop" android:usesCleartextTraffic="false">
+    <application android:label="TapTop" android:icon="@mipmap/ic_launcher" android:theme="@style/Theme.TapTop" android:usesCleartextTraffic="false">
         <activity android:name=".MainActivity" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
@@ -41,7 +41,7 @@
             </intent-filter>
         </receiver>
         <service android:name=".TipTopTileService" android:exported="true"
-            android:label="TipTop" android:icon="@drawable/ic_tile_tiptop"
+            android:label="TapTop" android:icon="@drawable/ic_tile_taptop"
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
             <intent-filter>
                 <action android:name="android.service.quicksettings.action.QS_TILE" />

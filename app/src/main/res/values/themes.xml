@@ -1,12 +1,12 @@
 <resources>
-    <style name="Theme.TipTop" parent="Theme.TipTop.Light" />
-    <style name="Theme.TipTop.Light" parent="android:style/Theme.Material.Light.NoActionBar">
+    <style name="Theme.TapTop" parent="Theme.TapTop.Light" />
+    <style name="Theme.TapTop.Light" parent="android:style/Theme.Material.Light.NoActionBar">
         <item name="android:fontFamily">sans</item>
         <item name="android:colorAccent">#8839ef</item>
         <item name="android:windowBackground">#eff1f5</item>
         <item name="android:windowLightStatusBar">true</item>
     </style>
-    <style name="Theme.TipTop.Dark" parent="android:style/Theme.Material.NoActionBar">
+    <style name="Theme.TapTop.Dark" parent="android:style/Theme.Material.NoActionBar">
         <item name="android:fontFamily">sans</item>
         <item name="android:colorAccent">#c6a0f6</item>
         <item name="android:windowBackground">#24273a</item>
