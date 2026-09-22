@@ -52,6 +52,7 @@ public class TopService extends AccessibilityService {
     private Choreographer choreographer;
     private final ScrollFramePacer framePacer = new ScrollFramePacer();
     private AccessibilityNodeInfo movingList;
+    private AccessibilityNodeInfo recentScrollTarget;
     private ContinuousDragScroller dragScroller;
     private long lastDragCancellation;
     private View stopRegion;
@@ -109,7 +110,12 @@ public class TopService extends AccessibilityService {
     @Override public void onAccessibilityEvent(AccessibilityEvent event) {
         if (event.getEventType() == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
                 || event.getEventType() == AccessibilityEvent.TYPE_WINDOWS_CHANGED) {
+            recentScrollTarget = null;
             if (!AppFilter.ALL.equals(AppFilter.mode(prefs))) refreshAppFilter();
+        }
+        if (event.getEventType() == AccessibilityEvent.TYPE_VIEW_SCROLLED) {
+            AccessibilityNodeInfo source = event.getSource();
+            if (source != null && isSubstantialScrollTarget(source)) recentScrollTarget = source;
         }
         if (movingList == null) return;
         if (event.getEventType() == AccessibilityEvent.TYPE_VIEW_SCROLLED) {
@@ -213,8 +219,10 @@ public class TopService extends AccessibilityService {
         }
         if (dragScroller != null) { stopNativeScroll("bar tap"); return; }
         if (movingList != null) { stopNativeScroll("bar tap"); return; }
+        long lookupStarted = SystemClock.uptimeMillis();
         AccessibilityNodeInfo target = findScrollable();
-        logScrollMode("selected target", target);
+        logScrollMode("selected target; lookupMs="
+                + (SystemClock.uptimeMillis() - lookupStarted), target);
         int speed = ScrollFramePacer.clampSpeed(
                 prefs.getInt("scroll_speed", ScrollFramePacer.DEFAULT_SPEED));
         boolean hasBackwardAction = target != null
@@ -498,6 +506,19 @@ public class TopService extends AccessibilityService {
         // Check the chosen foreground app, never fall through to an allowed
         // background window. This also covers shortcuts and automation intents.
         if (root == null || !AppFilter.allows(prefs, root.getPackageName())) return null;
+        // A recent scroll event identifies the list the user is interacting
+        // with. Validate its live snapshot before avoiding a full tree walk.
+        AccessibilityNodeInfo recent = recentScrollTarget;
+        recentScrollTarget = null;
+        if (recent != null && recent.getWindowId() == root.getWindowId()
+                && recent.refresh() && recent.getWindowId() == root.getWindowId()
+                && root.getPackageName() != null
+                && root.getPackageName().equals(recent.getPackageName())
+                && isSubstantialScrollTarget(recent)
+                && supports(recent, AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD)) {
+            recentScrollTarget = recent;
+            return recent;
+        }
         ArrayDeque<AccessibilityNodeInfo> queue = new ArrayDeque<>();
         ArrayDeque<Integer> depths = new ArrayDeque<>();
         queue.add(root);
@@ -538,7 +559,19 @@ public class TopService extends AccessibilityService {
                 }
             }
         }
+        recentScrollTarget = best;
         return best;
+    }
+
+    private boolean isSubstantialScrollTarget(AccessibilityNodeInfo node) {
+        if (!node.isVisibleToUser() || (!node.isScrollable()
+                && !supports(node, AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD))) return false;
+        Rect bounds = new Rect();
+        node.getBoundsInScreen(bounds);
+        long screenArea = (long) getResources().getDisplayMetrics().widthPixels
+                * getResources().getDisplayMetrics().heightPixels;
+        return bounds.height() > bounds.width() / 2
+                && (long) bounds.width() * bounds.height() >= screenArea / 6;
     }
 
     private boolean supports(AccessibilityNodeInfo node, int id) {
