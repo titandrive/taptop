@@ -443,6 +443,7 @@ public class MainActivity extends Activity {
                 caption.setText(format(key, progress + min));
                 control.setContentDescription(title + ": " + format(key, progress + min));
                 if (fromUser) {
+                    if (speed && prefs.getBoolean("haptics", true)) Haptics.click(control);
                     prefs.edit().putInt(key, progress + min).apply();
                     if (!speed) notifyService();
                     if (preview != null) preview.invalidate();
