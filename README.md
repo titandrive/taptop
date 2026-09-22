@@ -13,12 +13,12 @@ Version **0.5.1** · Android **8.0+**
 
 1. Install and open TipTop.
 2. Open **Accessibility settings** and enable TipTop’s service.
-3. Turn TipTop on, then tap the tap area while using another app.
+3. Turn TipTop on, then tap the tap zone while using another app.
 
 ## Make it yours
 
 - **Five speeds:** Slowest, Slow, Medium, Fast, Fastest.
-- **Adjustable tap area:** change its width, height, position, and top offset.
+- **Adjustable tap zone:** change its width, height, position, and top offset.
 - **Optional visible bar:** choose a color and opacity, or hide it. The hidden area still works; a dotted outline helps you adjust it inside TipTop.
 - **Light and dark themes:** Catppuccin Latte and Macchiato. Tap the sun/moon button to switch; hold it to follow the system.
 - **Optional haptics:** feedback when tapping the area or the enable/disable button.
@@ -31,7 +31,7 @@ Version **0.5.1** · Android **8.0+**
 
 Tap **Choose blocked apps** or **Choose allowed apps** to edit the list. Search by app name; selected apps appear in their own section at the top. **Select all** selects every app, including those hidden by search. **Clear** deselects everything. Tap **Done** to save or **Cancel** to discard changes.
 
-Both lists are saved separately. Excluded apps have no tap area and cannot be scrolled by shortcuts or automation. Newly installed apps appear when you return to TipTop; select them if you want to add them to a list.
+Both lists are saved separately. Excluded apps have no tap zone and cannot be scrolled by shortcuts or automation. Newly installed apps appear when you return to TipTop; select them if you want to add them to a list.
 
 ## Shortcuts
 

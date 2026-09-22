@@ -86,17 +86,17 @@ public class MainActivity extends Activity {
 
         section("SCROLLING");
         LinearLayout behavior = card();
-        toggle(behavior, "Haptic feedback", "A gentle click when you tap the area.", "haptics", true);
+        toggle(behavior, "Haptic feedback", "Gentle feedback when you touch the tapzone", "haptics", true);
         divider(behavior);
         slider(behavior, "Scroll speed", "scroll_speed", 0, 4, 4);
-        addText(behavior, "Choose how fast to scroll back to the top.", 13, muted, false, 0, 4);
+        addText(behavior, "Choose how fast TipTap scrolls to the top.", 13, muted, false, 0, 4);
 
         buildAppFilter();
 
-        section("TAP AREA");
+        section("TAP ZONE");
         LinearLayout bar = card();
         addText(bar, "Make it yours", 19, ink, true, 0, 4);
-        addText(bar, "Use the dotted outline on your screen to adjust the tap area. It stays active when the bar is hidden.", 13, muted, false, 0, 16);
+        addText(bar, "Use the dotted outline on your screen to adjust the tap zone. It stays active when the bar is hidden.", 13, muted, false, 0, 16);
         preview = new BarPreview();
         bar.addView(preview, new LinearLayout.LayoutParams(-1, dp(132)));
         addText(bar, "Position", 15, ink, true, 18, 10);
@@ -105,12 +105,12 @@ public class MainActivity extends Activity {
         slider(bar, "Height", "height", 24, 80, 36);
         slider(bar, "Top offset", "offset", 0, 80, 8);
         space(bar, 8);
-        TextView resetSliders = resetButton(bar, "all tap area sliders", "defaults", this::resetBarSliders);
+        TextView resetSliders = resetButton(bar, "all tap zone sliders", "defaults", this::resetBarSliders);
         resetSliders.setText("Reset all");
         resetSliders.setBackground(ripple(surface, 14));
         resetSliders.setLayoutParams(new LinearLayout.LayoutParams(-1, -2));
         divider(bar);
-        toggle(bar, "Show tap bar", "Show a visible marker over your tap area.", "enabled", true);
+        toggle(bar, "Show tap bar", "Show a visible marker over your tap zone.", "enabled", true);
         barAppearance = column();
         bar.addView(barAppearance, new LinearLayout.LayoutParams(-1, -2));
         barAppearance.setVisibility(prefs.getBoolean("enabled", true) ? View.VISIBLE : View.GONE);
@@ -226,11 +226,11 @@ public class MainActivity extends Activity {
         LinearLayout body = column();
         body.setPadding(dp(24), dp(4), dp(24), dp(16));
         addText(body, "How to use TipTop", 17, ink, true, 0, 8);
-        addText(body, "Enable TipTop and its accessibility service to get started.\n\nTap the tap area to scroll to the top. Touch anywhere on the screen to stop.\n\nAdjust the scroll speed and tap area in the app. The tap area still works when the bar is hidden.\n\nUse the sun/moon button to change themes. Hold it to follow your system theme.", 14, muted, false, 0, 16);
+        addText(body, "Enable TipTop and its accessibility service to get started.\n\nTap the tap zone to scroll to the top. Touch anywhere on the screen to stop.\n\nAdjust the scroll speed and tap zone in the app. The tap zone still works when the bar is hidden.\n\nUse the sun/moon button to change themes. Hold it to follow your system theme.", 14, muted, false, 0, 16);
         addText(body, "App filtering", 17, ink, true, 0, 8);
         addText(body, "All: works in every app.\nBlacklist: works everywhere except selected apps.\nWhitelist: works only in selected apps. An empty whitelist disables it everywhere.", 14, muted, false, 0, 12);
         addText(body, "Tap Choose blocked apps or Choose allowed apps to edit. Search by name; selected apps appear at the top.\n\nSelect all selects every app, even those hidden by search. Clear deselects everything. Done saves; Cancel discards changes.", 14, muted, false, 0, 12);
-        addText(body, "Each list is saved separately. Excluded apps have no tap area and cannot be scrolled by shortcuts or automation. New apps appear when you return to TipTop; select them to add them to a list.", 14, muted, false, 0, 16);
+        addText(body, "Each list is saved separately. Excluded apps have no tap zone and cannot be scrolled by shortcuts or automation. New apps appear when you return to TipTop; select them to add them to a list.", 14, muted, false, 0, 16);
         addText(body, "Shortcuts", 17, ink, true, 0, 8);
         addText(body, "Long-press TipTop’s app icon to find Toggle TipTop and Scroll to top. You can also select them in apps that support app shortcuts, including launchers and gesture apps.", 14, muted, false, 0, 16);
         addText(body, "Quick Settings", 17, ink, true, 0, 8);
@@ -383,7 +383,7 @@ public class MainActivity extends Activity {
         if (!prefs.getBoolean("tiptop_enabled", true)) {
             status.setText("●  TipTop is off");
             status.setTextColor(muted);
-            statusDetail.setText("Turn TipTop on above when you're ready. Your settings are saved.");
+            statusDetail.setText("Turn TipTap on to activate.");
             return;
         }
         String services = Settings.Secure.getString(getContentResolver(), Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);
@@ -391,7 +391,7 @@ public class MainActivity extends Activity {
         boolean enabledInSettings = services != null && services.contains(name);
         status.setText(TopService.connected ? "●  TipTop is active" : enabledInSettings ? "●  Waiting for accessibility" : "●  Let's get you set up");
         status.setTextColor(TopService.connected ? green : accent);
-        statusDetail.setText(TopService.connected ? "Tap the tap area to scroll to the top."
+        statusDetail.setText(TopService.connected ? "Touch the tap zone to scroll to the top."
                 : enabledInSettings ? "Waiting for Android to connect. If this persists, turn TipTop off and on in accessibility settings."
                 : "Enable TipTop in accessibility settings to start scrolling.");
     }
