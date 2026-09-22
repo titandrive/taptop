@@ -8,7 +8,6 @@ import android.content.SharedPreferences;
 import android.content.res.ColorStateList;
 import android.graphics.Canvas;
 import android.graphics.Color;
-import android.graphics.DashPathEffect;
 import android.graphics.Paint;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
@@ -525,7 +524,7 @@ public class MainActivity extends Activity {
         private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
         BarPreview() {
             super(MainActivity.this);
-            setContentDescription("Tap area preview. An outline shows where taps work when the bar is hidden.");
+            setContentDescription("Solid tap bar color example. Size and position are illustrative.");
         }
         @Override protected void onDraw(Canvas canvas) {
             super.onDraw(canvas);
@@ -538,26 +537,13 @@ public class MainActivity extends Activity {
                 canvas.drawRoundRect(dp(44), y + dp(2), getWidth() * (i == 1 ? .65f : .83f), y + dp(6), dp(2), dp(2), paint);
                 canvas.drawRoundRect(dp(44), y + dp(10), getWidth() * .5f, y + dp(13), dp(2), dp(2), paint);
             }
-            float scale = getWidth() / (float) getResources().getDisplayMetrics().widthPixels;
-            float width = dp(prefs.getInt("width", 100)) * scale;
-            float height = dp(prefs.getInt("height", 36)) * scale;
-            float offset = dp(prefs.getInt("offset", 8)) * scale;
-            String position = prefs.getString("position", "Center");
-            float x = position.equals("Left") ? 0 : position.equals("Right") ? getWidth() - width : (getWidth() - width) / 2;
-            if (prefs.getBoolean("enabled", true)) {
-                paint.setColor(alpha(ThemeColors.bar(prefs, dark), Math.round(255 * prefs.getInt("opacity", 70) / 100f)));
-                canvas.drawRoundRect(x, offset, x + width, offset + height, height / 2, height / 2, paint);
-            } else {
-                // Outline exists only in settings; the real tap area is invisible.
-                paint.setColor(accent);
-                paint.setStyle(Paint.Style.STROKE);
-                paint.setStrokeWidth(dp(1));
-                paint.setPathEffect(new DashPathEffect(new float[]{dp(4), dp(3)}, 0));
-                float inset = dp(1);
-                canvas.drawRect(x + inset, offset + inset, x + width - inset, offset + height - inset, paint);
-                paint.setPathEffect(null);
-                paint.setStyle(Paint.Style.FILL);
-            }
+            // Keep this example stable; use the actual overlay to adjust geometry.
+            float width = Math.min(dp(100), getWidth());
+            float height = dp(28);
+            float x = (getWidth() - width) / 2;
+            float y = dp(12);
+            paint.setColor(ThemeColors.bar(prefs, dark));
+            canvas.drawRoundRect(x, y, x + width, y + height, height / 2, height / 2, paint);
         }
     }
 }
