@@ -33,6 +33,7 @@ public class MainActivity extends Activity {
     private ScrollView scroll;
     private BarPreview preview;
     private final List<Runnable> refreshBarSliders = new ArrayList<>();
+    private final Runnable connectionChanged = this::updateStatus;
     private boolean dark;
     private int base, card, surface, ink, muted, accent, green;
 
@@ -108,9 +109,6 @@ public class MainActivity extends Activity {
         resetSliders.setBackground(ripple(surface, 14));
         resetSliders.setLayoutParams(new LinearLayout.LayoutParams(-1, -2));
 
-        section("COMPATIBILITY");
-        LinearLayout compatibility = card();
-        toggle(compatibility, "Fallback fling", "Try a single swipe if an app won't scroll. It may stop before the top.", "legacy_swipes", true);
         TextView footer = addText(content, "Made for a little less scrolling.\nNo internet access. No saved screen content.", 12, muted, false, 24, 0);
         footer.setGravity(Gravity.CENTER);
         if (state != null) scroll.post(() -> scroll.scrollTo(0, state.getInt("scroll_y")));
@@ -133,6 +131,8 @@ public class MainActivity extends Activity {
 
     private void buildStatus() {
         LinearLayout panel = card();
+        toggle(panel, "Enable TipTop", "Turn TipTop on or off.", "tiptop_enabled", true);
+        divider(panel);
         status = addText(panel, "", 17, ink, true, 0, 4);
         status.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
         statusDetail = addText(panel, "", 13, muted, false, 0, 14);
@@ -145,15 +145,36 @@ public class MainActivity extends Activity {
         panel.addView(access, new LinearLayout.LayoutParams(-1, -2));
     }
 
+    @Override protected void onStart() {
+        super.onStart();
+        TopService.addConnectionListener(connectionChanged);
+    }
+
+    @Override protected void onStop() {
+        TopService.removeConnectionListener(connectionChanged);
+        super.onStop();
+    }
+
     @Override protected void onResume() {
         super.onResume();
+        updateStatus();
+    }
+
+    private void updateStatus() {
+        if (status == null) return;
+        if (!prefs.getBoolean("tiptop_enabled", true)) {
+            status.setText("●  TipTop is off");
+            status.setTextColor(muted);
+            statusDetail.setText("Turn TipTop on above when you're ready. Your settings are saved.");
+            return;
+        }
         String services = Settings.Secure.getString(getContentResolver(), Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);
         String name = new ComponentName(this, TopService.class).flattenToString();
         boolean enabledInSettings = services != null && services.contains(name);
-        status.setText(TopService.connected ? "●  Ready when you are" : enabledInSettings ? "●  Needs a restart" : "●  Let's get you set up");
+        status.setText(TopService.connected ? "●  Ready when you are" : enabledInSettings ? "●  Waiting for accessibility" : "●  Let's get you set up");
         status.setTextColor(TopService.connected ? green : accent);
         statusDetail.setText(TopService.connected ? "Open an app, find your list, and tap the bar."
-                : enabledInSettings ? "Turn TipTop off and on in accessibility settings."
+                : enabledInSettings ? "Waiting for Android to connect. If this persists, turn TipTop off and on in accessibility settings."
                 : "Enable TipTop in accessibility settings to start scrolling.");
     }
 
@@ -179,6 +200,8 @@ public class MainActivity extends Activity {
         control.setChecked(prefs.getBoolean(key, initial));
         control.setOnCheckedChangeListener((button, checked) -> {
             prefs.edit().putBoolean(key, checked).apply();
+            if (key.equals("haptics") && checked) Haptics.click(button);
+            if (key.equals("tiptop_enabled")) updateStatus();
             if (key.equals("enabled") && barControls != null)
                 barControls.setVisibility(checked ? View.VISIBLE : View.GONE);
             if (!key.equals("haptics")) notifyService();

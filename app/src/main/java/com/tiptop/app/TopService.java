@@ -15,13 +15,9 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
-import android.os.VibrationEffect;
-import android.os.Vibrator;
-import android.os.VibratorManager;
 import android.util.Log;
 import android.view.Choreographer;
 import android.view.Gravity;
-import android.view.HapticFeedbackConstants;
 import android.view.KeyCharacterMap;
 import android.view.MotionEvent;
 import android.view.View;
@@ -31,11 +27,21 @@ import android.view.accessibility.AccessibilityNodeInfo;
 import android.view.accessibility.AccessibilityWindowInfo;
 
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.List;
 
 public class TopService extends AccessibilityService {
     public static final String ACTION_UPDATE = "com.tiptop.app.UPDATE";
     public static volatile boolean connected = false;
+    private static final List<Runnable> connectionListeners = new ArrayList<>();
+
+    // Service and activity lifecycle callbacks run on the main thread.
+    static void addConnectionListener(Runnable listener) { connectionListeners.add(listener); }
+    static void removeConnectionListener(Runnable listener) { connectionListeners.remove(listener); }
+    private static void setConnected(boolean value) {
+        connected = value;
+        for (Runnable listener : new ArrayList<>(connectionListeners)) listener.run();
+    }
     private WindowManager windows;
     private View bar;
     private SharedPreferences prefs;
@@ -72,12 +78,12 @@ public class TopService extends AccessibilityService {
     };
 
     @Override protected void onServiceConnected() {
-        connected = true;
         prefs = getSharedPreferences("settings", MODE_PRIVATE);
         windows = (WindowManager) getSystemService(WINDOW_SERVICE);
         choreographer = Choreographer.getInstance();
         registerReceiver(update, new IntentFilter(ACTION_UPDATE), Context.RECEIVER_NOT_EXPORTED);
         showBar();
+        setConnected(true);
     }
 
     @Override public void onAccessibilityEvent(AccessibilityEvent event) {
@@ -100,8 +106,13 @@ public class TopService extends AccessibilityService {
         }
     }
     @Override public void onInterrupt() { stopNativeScroll("interrupted"); }
+    @Override public boolean onUnbind(Intent intent) {
+        setConnected(false);
+        stopNativeScroll("service disconnected");
+        return super.onUnbind(intent);
+    }
     @Override public void onDestroy() {
-        connected = false;
+        setConnected(false);
         consumingStopTouch = false;
         stopNativeScroll("service stopped");
         try { unregisterReceiver(update); } catch (IllegalArgumentException ignored) {}
@@ -113,7 +124,7 @@ public class TopService extends AccessibilityService {
     private void showBar() {
         if (windows == null) return;
         if (bar != null) { windows.removeView(bar); bar = null; }
-        if (!prefs.getBoolean("enabled", true)) return;
+        if (!prefs.getBoolean("tiptop_enabled", true) || !prefs.getBoolean("enabled", true)) return;
         View view = new View(this);
         GradientDrawable background = new GradientDrawable();
         background.setColor(Color.rgb(39, 104, 244));
@@ -170,6 +181,7 @@ public class TopService extends AccessibilityService {
     }
 
     private void scrollToTop() {
+        if (!prefs.getBoolean("tiptop_enabled", true)) return;
         if (dragScroller != null) { stopNativeScroll("bar tap"); return; }
         if (movingList != null) { stopNativeScroll("bar tap"); return; }
         AccessibilityNodeInfo target = findScrollable();
@@ -379,14 +391,7 @@ public class TopService extends AccessibilityService {
 
     private void playTapFeedback(View view) {
         if (!prefs.getBoolean("haptics", true)) return;
-        Vibrator vibrator;
-        if (android.os.Build.VERSION.SDK_INT >= 31) {
-            VibratorManager manager = (VibratorManager) getSystemService(VIBRATOR_MANAGER_SERVICE);
-            vibrator = manager == null ? null : manager.getDefaultVibrator();
-        } else vibrator = (Vibrator) getSystemService(VIBRATOR_SERVICE);
-        if (vibrator != null && vibrator.hasVibrator() && android.os.Build.VERSION.SDK_INT >= 29)
-            vibrator.vibrate(VibrationEffect.createPredefined(VibrationEffect.EFFECT_CLICK));
-        else view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY);
+        Haptics.click(view);
     }
 
     private AccessibilityNodeInfo findScrollable() {
