@@ -86,7 +86,7 @@ public class MainActivity extends Activity {
 
         section("SCROLLING");
         LinearLayout behavior = card();
-        toggle(behavior, "Haptic feedback", "Gentle feedback when you touch the tapzone", "haptics", true);
+        toggle(behavior, "Haptic feedback", "Gentle feedback when you touch the tap zone", "haptics", true);
         divider(behavior);
         slider(behavior, "Scroll speed", "scroll_speed", 0, 4, 4);
         addText(behavior, "Choose how fast TipTap scrolls to the top.", 13, muted, false, 0, 4);
@@ -95,7 +95,7 @@ public class MainActivity extends Activity {
 
         section("TAP ZONE");
         LinearLayout bar = card();
-        addText(bar, "Make it yours", 19, ink, true, 0, 4);
+        addText(bar, "Adjust tap zone", 19, ink, true, 0, 4);
         addText(bar, "Use the dotted outline on your screen to adjust the tap zone. It stays active when the bar is hidden.", 13, muted, false, 0, 16);
         preview = new BarPreview();
         bar.addView(preview, new LinearLayout.LayoutParams(-1, dp(132)));
