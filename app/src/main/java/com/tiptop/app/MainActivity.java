@@ -228,6 +228,7 @@ public class MainActivity extends Activity {
         masterButton.setPadding(dp(16), dp(16), dp(16), dp(16));
         masterButton.setAccessibilityDelegate(buttonDelegate());
         masterButton.setOnClickListener(v -> {
+            if (prefs.getBoolean("haptics", true)) Haptics.click(v);
             prefs.edit().putBoolean("tiptop_enabled",
                     !prefs.getBoolean("tiptop_enabled", true)).apply();
             syncMasterButton();
