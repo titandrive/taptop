@@ -40,10 +40,9 @@ public class MainActivity extends Activity {
     private BarPreview preview;
     private final List<Runnable> refreshBarSliders = new ArrayList<>();
     private final Runnable connectionChanged = this::updateStatus;
-    private Switch masterSwitch;
-    private boolean syncingMasterSwitch;
+    private TextView masterButton;
     private final SharedPreferences.OnSharedPreferenceChangeListener settingChanged = (preferences, key) -> {
-        if ("tiptop_enabled".equals(key)) syncMasterSwitch();
+        if ("tiptop_enabled".equals(key)) syncMasterButton();
     };
     private boolean dark;
     private int base, card, surface, ink, muted, accent, green;
@@ -194,7 +193,18 @@ public class MainActivity extends Activity {
 
     private void buildStatus() {
         LinearLayout panel = card();
-        toggle(panel, "Enable TipTop", "Turn TipTop on or off.", "tiptop_enabled", true);
+        masterButton = text("", 21, accent, true);
+        masterButton.setGravity(Gravity.CENTER);
+        masterButton.setMinHeight(dp(76));
+        masterButton.setPadding(dp(16), dp(16), dp(16), dp(16));
+        masterButton.setAccessibilityDelegate(buttonDelegate());
+        masterButton.setOnClickListener(v -> {
+            prefs.edit().putBoolean("tiptop_enabled",
+                    !prefs.getBoolean("tiptop_enabled", true)).apply();
+            syncMasterButton();
+            notifyService();
+        });
+        panel.addView(masterButton, new LinearLayout.LayoutParams(-1, -2));
         divider(panel);
         status = addText(panel, "", 17, ink, true, 0, 4);
         status.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
@@ -212,7 +222,7 @@ public class MainActivity extends Activity {
         super.onStart();
         TopService.addConnectionListener(connectionChanged);
         prefs.registerOnSharedPreferenceChangeListener(settingChanged);
-        syncMasterSwitch();
+        syncMasterButton();
     }
 
     @Override protected void onStop() {
@@ -256,11 +266,15 @@ public class MainActivity extends Activity {
                 : "Enable TipTop in accessibility settings to start scrolling.");
     }
 
-    private void syncMasterSwitch() {
-        if (masterSwitch == null) return;
-        syncingMasterSwitch = true;
-        masterSwitch.setChecked(prefs.getBoolean("tiptop_enabled", true));
-        syncingMasterSwitch = false;
+    private void syncMasterButton() {
+        if (masterButton == null) return;
+        boolean enabled = prefs.getBoolean("tiptop_enabled", true);
+        masterButton.setText(enabled ? "Disable TipTop" : "Enable TipTop");
+        masterButton.setTextColor(enabled ? base : accent);
+        masterButton.setBackground(ripple(enabled ? accent : surface, 18));
+        masterButton.setContentDescription(enabled ? "Disable TipTop" : "Enable TipTop");
+        if (android.os.Build.VERSION.SDK_INT >= 30)
+            masterButton.setStateDescription(enabled ? "On" : "Off");
         updateStatus();
     }
 
@@ -284,12 +298,9 @@ public class MainActivity extends Activity {
         control.setThumbTintList(new ColorStateList(new int[][]{{android.R.attr.state_checked}, {}}, new int[]{accent, muted}));
         control.setTrackTintList(new ColorStateList(new int[][]{{android.R.attr.state_checked}, {}}, new int[]{alpha(accent, 90), surface}));
         control.setChecked(prefs.getBoolean(key, initial));
-        if (key.equals("tiptop_enabled")) masterSwitch = control;
         control.setOnCheckedChangeListener((button, checked) -> {
-            if (key.equals("tiptop_enabled") && syncingMasterSwitch) return;
             prefs.edit().putBoolean(key, checked).apply();
             if (key.equals("haptics") && checked) Haptics.click(button);
-            if (key.equals("tiptop_enabled")) updateStatus();
             if (key.equals("enabled") && barAppearance != null)
                 barAppearance.setVisibility(checked ? View.VISIBLE : View.GONE);
             if (!key.equals("haptics")) notifyService();
