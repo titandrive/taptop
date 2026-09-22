@@ -19,6 +19,7 @@ import android.os.VibrationEffect;
 import android.os.Vibrator;
 import android.os.VibratorManager;
 import android.util.Log;
+import android.view.Choreographer;
 import android.view.Gravity;
 import android.view.HapticFeedbackConstants;
 import android.view.MotionEvent;
@@ -38,15 +39,21 @@ public class TopService extends AccessibilityService {
     private View bar;
     private SharedPreferences prefs;
     private final Handler handler = new Handler(Looper.getMainLooper());
+    private Choreographer choreographer;
+    private final ScrollFramePacer framePacer = new ScrollFramePacer();
     private AccessibilityNodeInfo movingList;
     private View stopRegion;
     private boolean consumingStopTouch;
     private long scrollStarted;
     private long lastProgress;
-    private long lastRefresh;
     private int scrollEvents;
     private long scrollDistance;
-    private final Runnable advanceScroll = this::advanceNativeScroll;
+    private int scrollRequests;
+    private long lastRequestTime;
+    private long maxRequestGap;
+    private long maxActionDuration;
+    private final Choreographer.FrameCallback advanceScroll = this::advanceNativeScroll;
+    private final Runnable scrollWatchdog = this::checkScrollProgress;
     private static final int[] FLING_DURATION_MS = {220, 160, 120, 90, 65};
     // AndroidX publishes these separately from the platform's API 35 properties.
     private static final String COMPAT_BOOLEAN_PROPERTIES =
@@ -65,18 +72,23 @@ public class TopService extends AccessibilityService {
         connected = true;
         prefs = getSharedPreferences("settings", MODE_PRIVATE);
         windows = (WindowManager) getSystemService(WINDOW_SERVICE);
+        choreographer = Choreographer.getInstance();
         registerReceiver(update, new IntentFilter(ACTION_UPDATE), Context.RECEIVER_NOT_EXPORTED);
         showBar();
     }
 
     @Override public void onAccessibilityEvent(AccessibilityEvent event) {
         if (movingList == null) return;
-        if (event.getEventType() == AccessibilityEvent.TYPE_VIEW_SCROLLED
-                && movingList.equals(event.getSource())) {
+        if (event.getEventType() == AccessibilityEvent.TYPE_VIEW_SCROLLED) {
+            AccessibilityNodeInfo source = event.getSource();
+            if (!movingList.equals(source)) return;
             lastProgress = SystemClock.uptimeMillis();
             scrollEvents++;
-            if (android.os.Build.VERSION.SDK_INT >= 28)
+            if (android.os.Build.VERSION.SDK_INT >= 28 && event.getScrollDeltaY() != -1)
                 scrollDistance += Math.abs((long) event.getScrollDeltaY());
+            // Scroll events invalidate the accessibility cache. Use their source
+            // snapshot instead of forcing another cross-process refresh mid-frame.
+            movingList = source;
         } else if (event.getEventType() == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
                 && event.getPackageName() != null
                 && !event.getPackageName().equals(movingList.getPackageName())
@@ -163,14 +175,19 @@ public class TopService extends AccessibilityService {
         if (target != null && supports(target, AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD)
                 && target.performAction(AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD)) {
             movingList = target;
-            scrollStarted = lastProgress = lastRefresh = SystemClock.uptimeMillis();
+            scrollStarted = lastProgress = lastRequestTime = SystemClock.uptimeMillis();
             scrollEvents = 0;
             scrollDistance = 0;
-            logScrollMode("continuous native", target);
+            scrollRequests = 1;
+            maxRequestGap = maxActionDuration = 0;
+            framePacer.resetForView(target.getClassName());
+            framePacer.shouldAdvance(System.nanoTime());
+            logScrollMode("paced native v2", target);
             showStopRegion();
             if (movingList == null) return;
             if (bar != null) bar.getBackground().setTint(Color.rgb(220, 64, 64));
-            handler.postDelayed(advanceScroll, 16);
+            choreographer.postFrameCallback(advanceScroll);
+            handler.postDelayed(scrollWatchdog, 250);
             return;
         }
         // Keep the existing preference so an explicitly disabled fallback stays off.
@@ -179,37 +196,54 @@ public class TopService extends AccessibilityService {
         flingOnce(target);
     }
 
-    private void advanceNativeScroll() {
+    private void advanceNativeScroll(long frameTimeNanos) {
         if (movingList == null) return;
+        if (!framePacer.shouldAdvance(frameTimeNanos)) {
+            choreographer.postFrameCallback(advanceScroll);
+            return;
+        }
         long now = SystemClock.uptimeMillis();
         if (now - scrollStarted > 60000 || now - lastProgress > 1500) {
             stopNativeScroll("no progress or time limit");
             return;
         }
-        // Refresh metadata less often than animation requests to keep tree queries
-        // off the per-frame path. Retain this exact node rather than picking a parent.
-        if (now - lastRefresh >= 200) {
-            lastRefresh = now;
-            if (!movingList.refresh() || !movingList.isVisibleToUser()
-                    || !supports(movingList, AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD)) {
-                stopNativeScroll("top or target unavailable");
-                return;
-            }
+        if (!movingList.isVisibleToUser()
+                || !supports(movingList, AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD)) {
+            stopNativeScroll("top or target unavailable");
+            return;
         }
         // Renew the native animation before its easing curve slows to a stop.
         // No finger-down events interrupt the list, and no page-sized pauses occur.
-        if (!movingList.performAction(AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD)) {
+        maxRequestGap = Math.max(maxRequestGap, now - lastRequestTime);
+        lastRequestTime = now;
+        scrollRequests++;
+        boolean accepted = movingList.performAction(AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD);
+        maxActionDuration = Math.max(maxActionDuration, SystemClock.uptimeMillis() - now);
+        if (!accepted) {
             stopNativeScroll("native action finished");
             return;
         }
-        handler.postAtTime(advanceScroll, Math.max(now + 16, SystemClock.uptimeMillis() + 1));
+        choreographer.postFrameCallback(advanceScroll);
+    }
+
+    private void checkScrollProgress() {
+        if (movingList == null) return;
+        long now = SystemClock.uptimeMillis();
+        // This still runs if display frame callbacks pause, e.g. when the screen locks.
+        if (now - scrollStarted > 60000 || now - lastProgress > 1500)
+            stopNativeScroll("no progress or time limit");
+        else handler.postDelayed(scrollWatchdog, 250);
     }
 
     private void stopNativeScroll(String reason) {
-        handler.removeCallbacks(advanceScroll);
+        if (choreographer != null) choreographer.removeFrameCallback(advanceScroll);
+        handler.removeCallbacks(scrollWatchdog);
+        framePacer.reset();
         if (movingList != null) Log.d("TipTopScroll", "native stopped: " + reason
                 + "; events=" + scrollEvents + "; distance=" + scrollDistance
-                + "; elapsed=" + (SystemClock.uptimeMillis() - scrollStarted));
+                + "; elapsed=" + (SystemClock.uptimeMillis() - scrollStarted)
+                + "; requests=" + scrollRequests + "; maxGapMs=" + maxRequestGap
+                + "; maxActionMs=" + maxActionDuration);
         movingList = null;
         if (!consumingStopTouch) removeStopRegion();
         if (bar != null) bar.getBackground().setTint(Color.rgb(39, 104, 244));
