@@ -29,6 +29,7 @@ public class MainActivity extends Activity {
     private SharedPreferences prefs;
     private TextView status, statusDetail, access;
     private LinearLayout content;
+    private LinearLayout barControls;
     private ScrollView scroll;
     private BarPreview preview;
     private final List<Runnable> refreshBarSliders = new ArrayList<>();
@@ -84,8 +85,12 @@ public class MainActivity extends Activity {
         choices(appearance, "theme", new String[]{"System", "Light", "Dark"}, "System");
 
         section("TAP BAR");
-        LinearLayout bar = card();
-        toggle(bar, "Show tap bar", "One tap to head back to the top.", "enabled", true);
+        LinearLayout barCard = card();
+        toggle(barCard, "Show tap bar", "One tap to head back to the top.", "enabled", true);
+        LinearLayout bar = column();
+        barControls = bar;
+        barCard.addView(bar, new LinearLayout.LayoutParams(-1, -2));
+        bar.setVisibility(prefs.getBoolean("enabled", true) ? View.VISIBLE : View.GONE);
         divider(bar);
         addText(bar, "Make it yours", 19, ink, true, 0, 4);
         addText(bar, "Adjust the size and placement to suit your thumb.", 13, muted, false, 0, 16);
@@ -174,6 +179,8 @@ public class MainActivity extends Activity {
         control.setChecked(prefs.getBoolean(key, initial));
         control.setOnCheckedChangeListener((button, checked) -> {
             prefs.edit().putBoolean(key, checked).apply();
+            if (key.equals("enabled") && barControls != null)
+                barControls.setVisibility(checked ? View.VISIBLE : View.GONE);
             if (!key.equals("haptics")) notifyService();
             if (preview != null) preview.invalidate();
         });
