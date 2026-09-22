@@ -4,7 +4,7 @@
 
 Tap your chosen area to scroll to the top. Touch the screen to stop.
 
-Version **0.5.1** · Android **8.0+**
+Version **0.6.0** · Android **8.0+**
 
 [<img src="docs/assets/badge_obtainium.png" alt="Get it on Obtainium" height="80">](https://apps.obtainium.imranr.dev/redirect?r=obtainium%3A%2F%2Fapp%2F%257B%2522id%2522%253A%2522com.taptop.app%2522%252C%2522url%2522%253A%2522https%253A%252F%252Fgithub.com%252Ftitandrive%252Ftaptop%2522%252C%2522author%2522%253A%2522TitanDrive%2522%252C%2522name%2522%253A%2522TapTop%2522%257D)
 [<img src="docs/assets/badge_github.png" alt="Get APK from GitHub" height="80">](https://github.com/titandrive/taptop/releases/latest)
@@ -39,7 +39,7 @@ Both lists are saved separately. Excluded apps have no tap zone and cannot be sc
 
 - **Quick Settings:** add the TapTop tile to toggle it on or off.
 - **App shortcuts:** long-press the app icon for **Toggle TapTop**, **Turn on TapTop**, **Turn off TapTop**, and **Scroll to top**. Compatible launchers and gesture apps can use them too.
-- **Automation:** trigger either action from Tasker or MacroDroid.
+- **Automation:** trigger any of the four actions from Tasker or MacroDroid.
 
 The app’s **ⓘ button** includes a usage guide and copyable automation fields.
 
