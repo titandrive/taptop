@@ -2,14 +2,12 @@
 
 **One tap. Back to the top.**
 
-Tap your chosen area to scroll to the top. Touch the screen to stop.
+An easy and intuitive way to scroll to the top of any app, with one tap. Just like those *other* phones.
 
-Version **0.6.0** · Android **8.0+**
+
 
 [<img src="docs/assets/badge_obtainium.png" alt="Get it on Obtainium" height="80">](https://apps.obtainium.imranr.dev/redirect?r=obtainium%3A%2F%2Fapp%2F%257B%2522id%2522%253A%2522com.taptop.app%2522%252C%2522url%2522%253A%2522https%253A%252F%252Fgithub.com%252Ftitandrive%252Ftaptop%2522%252C%2522author%2522%253A%2522TitanDrive%2522%252C%2522name%2522%253A%2522TapTop%2522%257D)
 [<img src="docs/assets/badge_github.png" alt="Get APK from GitHub" height="80">](https://github.com/titandrive/taptop/releases/latest)
-
-**Upgrading from 0.5.x:** TapTop now uses `com.taptop.app` and installs as a separate app. Enable its accessibility service and set up your preferences, shortcuts, and automations again. Disable the previous app’s accessibility service to avoid overlapping tap zones. In Obtainium, add TapTop using the button above.
 
 ## Screenshots
 
@@ -34,7 +32,7 @@ Version **0.6.0** · Android **8.0+**
 
 </details>
 
-## Make it yours
+## Customization
 
 - **Five speeds:** Slowest, Slow, Medium, Fast, Fastest.
 - **Adjustable tap zone:** change its width, height, position, and top offset.
@@ -117,7 +115,7 @@ adb shell am broadcast -a com.taptop.app.action.SCROLL_TO_TOP -n com.taptop.app/
 
 ## Privacy & compatibility
 
-TapTop uses accessibility access to scroll the current app. It has no internet permission and does not save screen content. Scrolling behavior depends on the app; some apps may not respond.
+TapTop uses accessibility access to scroll the current app. It has no internet permission and does not save screen content. Scrolling behavior depends on the app; some apps may not respond. Submit an issue if you have any trouble.
 
 <details>
 <summary>Build from source</summary>
