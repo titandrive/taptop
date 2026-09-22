@@ -146,7 +146,7 @@ public class MainActivity extends Activity {
     }
 
     private void buildAppFilter() {
-        section("APPS");
+        section("APP FILTERING");
         LinearLayout panel = card();
         LinearLayout selector = column();
         panel.addView(selector, new LinearLayout.LayoutParams(-1, -2));
@@ -154,6 +154,7 @@ public class MainActivity extends Activity {
         TextView manage = text("", 14, accent, true);
         manage.setGravity(Gravity.CENTER);
         manage.setMinHeight(dp(48));
+        manage.setPadding(dp(12), dp(10), dp(12), dp(10));
         manage.setBackground(ripple(base, 14));
         manage.setAccessibilityDelegate(buttonDelegate());
         panel.addView(manage, new LinearLayout.LayoutParams(-1, -2));
@@ -165,7 +166,15 @@ public class MainActivity extends Activity {
                     : AppFilter.BLACKLIST.equals(mode) ? "Works in all apps except those you select."
                     : "Works only in the apps you select.");
             manage.setVisibility(all ? View.INVISIBLE : View.VISIBLE);
-            manage.setText((AppFilter.WHITELIST.equals(mode) ? "Allowed apps" : "Blocked apps") + " · " + count);
+            String action = AppFilter.WHITELIST.equals(mode) ? "Choose allowed apps" : "Choose blocked apps";
+            String selection = count == 0 ? "No apps selected" : count + (count == 1 ? " app selected" : " apps selected");
+            android.text.SpannableString label = new android.text.SpannableString(action + "\n" + selection);
+            label.setSpan(new android.text.style.RelativeSizeSpan(.85f), action.length() + 1,
+                    label.length(), android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            label.setSpan(new android.text.style.ForegroundColorSpan(muted), action.length() + 1,
+                    label.length(), android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            manage.setText(label);
+            manage.setContentDescription(action + ". " + selection + ".");
         };
         choices(selector, AppFilter.MODE,
                 new String[]{AppFilter.ALL, AppFilter.BLACKLIST, AppFilter.WHITELIST},
