@@ -11,6 +11,13 @@ Version **0.6.0** · Android **8.0+**
 
 **Upgrading from 0.5.x:** TapTop now uses `com.taptop.app` and installs as a separate app. Enable its accessibility service and set up your preferences, shortcuts, and automations again. Disable the previous app’s accessibility service to avoid overlapping tap zones. In Obtainium, add TapTop using the button above.
 
+## Screenshots
+
+<p>
+  <a href="docs/screenshots/main-controls.png"><img src="docs/screenshots/main-controls.png" alt="TapTop main controls in dark mode, showing Start/Stop, accessibility status, haptics, scroll speed, and app filtering" width="300"></a>
+  <a href="docs/screenshots/tap-zone-settings.png"><img src="docs/screenshots/tap-zone-settings.png" alt="TapTop tap-zone settings for preview, position, width, height, top offset, visibility, and version footer" width="300"></a>
+</p>
+
 ## Install and get started
 
 1. Download **TapTop.apk** from the [latest release](https://github.com/titandrive/taptop/releases/latest), or use the Obtainium button above.
