@@ -38,7 +38,7 @@ An easy and intuitive way to scroll to the top of any app, with one tap. Just li
 - **Adjustable tap zone:** change its width, height, position, and top offset.
 - **Optional visible bar:** choose a color and opacity, or hide it. The hidden area still works; a dotted outline helps you adjust it inside TapTop.
 - **Light and dark themes:** Catppuccin Latte and Macchiato. Tap the sun/moon button to switch; hold it to follow the system.
-- **Optional haptics:** feedback when tapping the area or the enable/disable button.
+- **Optional haptics:** feedback when touching the tap zone.
 
 ## App filtering
 
