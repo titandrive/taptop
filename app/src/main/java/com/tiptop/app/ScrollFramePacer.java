@@ -2,6 +2,7 @@ package com.tiptop.app;
 
 /** Limits native requests to roughly 60 per second, always on display frames. */
 final class ScrollFramePacer {
+    static final int DEFAULT_SPEED = 4;
     private long minimumIntervalNanos = 16_000_000L;
     private long lastFrame = Long.MIN_VALUE;
 
@@ -14,6 +15,10 @@ final class ScrollFramePacer {
     }
 
     void reset() { lastFrame = Long.MIN_VALUE; }
+
+    static int clampSpeed(int speed) {
+        return Math.max(0, Math.min(DEFAULT_SPEED, speed));
+    }
 
     void resetForView(CharSequence className) {
         // Generic semantic views can restart their animation from rest on every

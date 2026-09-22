@@ -8,6 +8,11 @@ import java.util.List;
 import static org.junit.Assert.*;
 
 public class ScrollFramePacerTest {
+    @Test public void invalidSpeedsStayWithinSupportedRange() {
+        assertEquals(0, ScrollFramePacer.clampSpeed(-100));
+        assertEquals(ScrollFramePacer.DEFAULT_SPEED, ScrollFramePacer.clampSpeed(100));
+    }
+
     @Test public void genericSemanticViewCanAnimateBeforeNextRequest() {
         ScrollFramePacer pacer = new ScrollFramePacer();
         pacer.resetForView("android.view.View");

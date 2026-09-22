@@ -42,6 +42,8 @@ public class TopService extends AccessibilityService {
     private Choreographer choreographer;
     private final ScrollFramePacer framePacer = new ScrollFramePacer();
     private AccessibilityNodeInfo movingList;
+    private ContinuousDragScroller dragScroller;
+    private long lastDragCancellation;
     private View stopRegion;
     private boolean consumingStopTouch;
     private long scrollStarted;
@@ -54,7 +56,7 @@ public class TopService extends AccessibilityService {
     private long maxActionDuration;
     private final Choreographer.FrameCallback advanceScroll = this::advanceNativeScroll;
     private final Runnable scrollWatchdog = this::checkScrollProgress;
-    private static final int[] FLING_DURATION_MS = {220, 160, 120, 90, 65};
+    private static final int FLING_DURATION_MS = 90;
     // AndroidX publishes these separately from the platform's API 35 properties.
     private static final String COMPAT_BOOLEAN_PROPERTIES =
             "androidx.view.accessibility.AccessibilityNodeInfoCompat.BOOLEAN_PROPERTY_KEY";
@@ -119,13 +121,17 @@ public class TopService extends AccessibilityService {
         view.setAlpha(prefs.getInt("opacity", 70) / 100f);
         view.setContentDescription("Scroll to top");
         view.setOnClickListener(v -> scrollToTop());
+        final boolean[] stoppedOnDown = {false};
         view.setOnTouchListener((v, event) -> {
             if (event.getActionMasked() == MotionEvent.ACTION_DOWN) {
                 playTapFeedback(v);
+                stoppedOnDown[0] = dragScroller != null
+                        || SystemClock.uptimeMillis() - lastDragCancellation < 150;
+                if (dragScroller != null) stopNativeScroll("bar tap");
                 return true;
             }
             if (event.getActionMasked() == MotionEvent.ACTION_UP) {
-                v.performClick();
+                if (!stoppedOnDown[0]) v.performClick();
                 return true;
             }
             return true;
@@ -146,9 +152,20 @@ public class TopService extends AccessibilityService {
     }
 
     private void scrollToTop() {
+        if (dragScroller != null) { stopNativeScroll("bar tap"); return; }
         if (movingList != null) { stopNativeScroll("bar tap"); return; }
         AccessibilityNodeInfo target = findScrollable();
-        if (target != null && supports(target, AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD)
+        int speed = ScrollFramePacer.clampSpeed(
+                prefs.getInt("scroll_speed", ScrollFramePacer.DEFAULT_SPEED));
+        boolean hasBackwardAction = target != null
+                && supports(target, AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD);
+        if (speed < ScrollFramePacer.DEFAULT_SPEED && hasBackwardAction) {
+            startContinuousDrag(target, speed);
+            return;
+        }
+        // Maximum retains the target app's existing native animation.
+        // Lower speeds use a held drag with an explicit travel velocity.
+        if (speed == ScrollFramePacer.DEFAULT_SPEED && hasBackwardAction
                 && supportsGranularScroll(target)) {
             Bundle args = new Bundle();
             args.putFloat("android.view.accessibility.action.ARGUMENT_SCROLL_AMOUNT_FLOAT",
@@ -161,7 +178,8 @@ public class TopService extends AccessibilityService {
                 return;
             }
         }
-        if (target != null && supports(target,
+        if (target != null && (speed == ScrollFramePacer.DEFAULT_SPEED || !hasBackwardAction)
+                && supports(target,
                 AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_TO_POSITION.getId())) {
             Bundle args = new Bundle();
             args.putInt(AccessibilityNodeInfo.ACTION_ARGUMENT_ROW_INT, 0);
@@ -194,6 +212,28 @@ public class TopService extends AccessibilityService {
         if (!prefs.getBoolean("legacy_swipes", true) || target == null
                 || !supports(target, AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD)) return;
         flingOnce(target);
+    }
+
+    private void startContinuousDrag(AccessibilityNodeInfo target, int speed) {
+        Rect bounds = new Rect();
+        target.getBoundsInScreen(bounds);
+        if (!bounds.intersect(0, 0, getResources().getDisplayMetrics().widthPixels,
+                getResources().getDisplayMetrics().heightPixels)
+                || bounds.height() < dp(180)) return;
+        movingList = target;
+        scrollStarted = lastProgress = SystemClock.uptimeMillis();
+        scrollEvents = scrollRequests = 0;
+        scrollDistance = maxRequestGap = maxActionDuration = 0;
+        dragScroller = new ContinuousDragScroller(this, bounds,
+                getResources().getDisplayMetrics().density, speed, cancelled -> {
+                    dragScroller = null;
+                    if (cancelled) lastDragCancellation = SystemClock.uptimeMillis();
+                    stopNativeScroll(cancelled ? "drag cancelled" : "drag finished");
+                });
+        logScrollMode("continuous drag speed=" + speed, target);
+        if (bar != null) bar.getBackground().setTint(Color.rgb(220, 64, 64));
+        handler.postDelayed(scrollWatchdog, 250);
+        dragScroller.start();
     }
 
     private void advanceNativeScroll(long frameTimeNanos) {
@@ -229,6 +269,11 @@ public class TopService extends AccessibilityService {
     private void checkScrollProgress() {
         if (movingList == null) return;
         long now = SystemClock.uptimeMillis();
+        if (dragScroller != null && (!movingList.isVisibleToUser()
+                || !supports(movingList, AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD))) {
+            stopNativeScroll("top or target unavailable");
+            return;
+        }
         // This still runs if display frame callbacks pause, e.g. when the screen locks.
         if (now - scrollStarted > 60000 || now - lastProgress > 1500)
             stopNativeScroll("no progress or time limit");
@@ -245,6 +290,7 @@ public class TopService extends AccessibilityService {
                 + "; requests=" + scrollRequests + "; maxGapMs=" + maxRequestGap
                 + "; maxActionMs=" + maxActionDuration);
         movingList = null;
+        if (dragScroller != null) dragScroller.stop();
         if (!consumingStopTouch) removeStopRegion();
         if (bar != null) bar.getBackground().setTint(Color.rgb(39, 104, 244));
     }
@@ -285,11 +331,9 @@ public class TopService extends AccessibilityService {
         Path path = new Path();
         path.moveTo(bounds.centerX(), bounds.top + bounds.height() * .20f);
         path.lineTo(bounds.centerX(), bounds.top + bounds.height() * .80f);
-        int strength = Math.max(0, Math.min(FLING_DURATION_MS.length - 1,
-                prefs.getInt("speed", 3)));
         GestureDescription gesture = new GestureDescription.Builder()
                 .addStroke(new GestureDescription.StrokeDescription(path, 0,
-                        FLING_DURATION_MS[strength]))
+                        FLING_DURATION_MS))
                 .build();
         logScrollMode("single fling", target);
         // Dispatch exactly once. A subsequent down would interrupt the app's

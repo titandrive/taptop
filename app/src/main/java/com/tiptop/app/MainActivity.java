@@ -15,7 +15,7 @@ import android.widget.Switch;
 import android.widget.TextView;
 
 public class MainActivity extends Activity {
-    private static final String[] SPEED_LABELS = {"Gentle", "Medium", "Strong", "Fast", "Maximum"};
+    private static final String[] SPEED_LABELS = {"Slowest", "Slow", "Medium", "Fast", "Maximum"};
     private SharedPreferences prefs;
     private TextView status;
     private LinearLayout content;
@@ -93,17 +93,20 @@ public class MainActivity extends Activity {
         TextView caption = label("", 18, true);
         SeekBar bar = new SeekBar(this);
         bar.setMax(SPEED_LABELS.length - 1);
-        bar.setProgress(Math.max(0, Math.min(SPEED_LABELS.length - 1, prefs.getInt("speed", 3))));
-        caption.setText("Fallback fling strength: " + SPEED_LABELS[bar.getProgress()]);
+        bar.setContentDescription("Scroll speed");
+        bar.setProgress(ScrollFramePacer.clampSpeed(
+                prefs.getInt("scroll_speed", ScrollFramePacer.DEFAULT_SPEED)));
+        caption.setText("Scroll speed: " + SPEED_LABELS[bar.getProgress()]);
         bar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             public void onProgressChanged(SeekBar seek, int progress, boolean fromUser) {
-                caption.setText("Fallback fling strength: " + SPEED_LABELS[progress]);
-                if (fromUser) prefs.edit().putInt("speed", progress).apply();
+                caption.setText("Scroll speed: " + SPEED_LABELS[progress]);
+                if (fromUser) prefs.edit().putInt("scroll_speed", progress).apply();
             }
             public void onStartTrackingTouch(SeekBar seek) {}
             public void onStopTrackingTouch(SeekBar seek) {}
         });
         content.addView(bar);
+        label("Slower settings use steady movement. Maximum keeps the original scrolling behavior. Changes apply on your next tap.", 14, false);
     }
 
     private void slider(String title, String key, int min, int max, int initial) {
