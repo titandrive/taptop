@@ -14,6 +14,10 @@ final class ShortcutActions {
     static void perform(Context context, String action) {
         SharedPreferences prefs = context.getSharedPreferences("settings", Context.MODE_PRIVATE);
         if (ACTION_TOGGLE.equals(action)) {
+            if (!TopService.connected) {
+                Toast.makeText(context, "Enable TipTop in accessibility settings first", Toast.LENGTH_SHORT).show();
+                return;
+            }
             prefs.edit().putBoolean("tiptop_enabled",
                     !prefs.getBoolean("tiptop_enabled", true)).apply();
             context.sendBroadcast(new Intent(TopService.ACTION_UPDATE).setPackage(context.getPackageName()));

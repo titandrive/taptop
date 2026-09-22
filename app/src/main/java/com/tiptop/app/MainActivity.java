@@ -43,7 +43,7 @@ public class MainActivity extends Activity {
     private ScrollView scroll;
     private BarPreview preview;
     private final List<Runnable> refreshBarSliders = new ArrayList<>();
-    private final Runnable connectionChanged = this::updateStatus;
+    private final Runnable connectionChanged = this::syncMasterButton;
     private TextView masterButton;
     private android.graphics.drawable.Drawable masterIcon;
     private final SharedPreferences.OnSharedPreferenceChangeListener settingChanged = (preferences, key) -> {
@@ -315,6 +315,7 @@ public class MainActivity extends Activity {
         masterButton.setPadding(dp(16), dp(16), dp(16), dp(16));
         masterButton.setAccessibilityDelegate(buttonDelegate());
         masterButton.setOnClickListener(v -> {
+            if (!TopService.connected) { syncMasterButton(); return; }
             if (prefs.getBoolean("haptics", true)) Haptics.click(v);
             prefs.edit().putBoolean("tiptop_enabled",
                     !prefs.getBoolean("tiptop_enabled", true)).apply();
@@ -365,7 +366,7 @@ public class MainActivity extends Activity {
         AppPickerDialog.preload(this, prefs);
         foreground = true;
         notifyBarAppearance();
-        updateStatus();
+        syncMasterButton();
     }
 
     @Override protected void onPause() {
@@ -380,25 +381,41 @@ public class MainActivity extends Activity {
 
     private void updateStatus() {
         if (status == null) return;
+        if (!TopService.connected) {
+            String services = Settings.Secure.getString(getContentResolver(),
+                    Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);
+            ComponentName service = new ComponentName(this, TopService.class);
+            boolean enabledInSettings = false;
+            if (services != null) {
+                for (String name : services.split(":"))
+                    if (service.equals(ComponentName.unflattenFromString(name))) enabledInSettings = true;
+            }
+            enabledInSettings &= Settings.Secure.getInt(getContentResolver(),
+                    Settings.Secure.ACCESSIBILITY_ENABLED, 0) == 1;
+            status.setText(enabledInSettings ? "●  Accessibility is not connected" : "●  Accessibility is off");
+            status.setTextColor(dark ? 0xffed8796 : 0xffd20f39);
+            statusDetail.setText(enabledInSettings
+                    ? "TipTop cannot start yet. If this persists, turn its accessibility service off and on in Accessibility settings below."
+                    : "TipTop cannot start. Open Accessibility settings below and enable TipTop under Installed apps.");
+            return;
+        }
         if (!prefs.getBoolean("tiptop_enabled", true)) {
             status.setText("●  TipTop is off");
             status.setTextColor(muted);
             statusDetail.setText("Turn TipTap on to activate.");
             return;
         }
-        String services = Settings.Secure.getString(getContentResolver(), Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);
-        String name = new ComponentName(this, TopService.class).flattenToString();
-        boolean enabledInSettings = services != null && services.contains(name);
-        status.setText(TopService.connected ? "●  TipTop is active" : enabledInSettings ? "●  Waiting for accessibility" : "●  Let's get you set up");
-        status.setTextColor(TopService.connected ? green : accent);
-        statusDetail.setText(TopService.connected ? "Touch the tap zone to scroll to the top."
-                : enabledInSettings ? "Waiting for Android to connect. If this persists, turn TipTop off and on in accessibility settings."
-                : "Enable TipTop in accessibility settings to start scrolling.");
+        status.setText("●  TipTop is active");
+        status.setTextColor(green);
+        statusDetail.setText("Touch the tap zone to scroll to the top.");
     }
 
     private void syncMasterButton() {
         if (masterButton == null) return;
-        boolean enabled = prefs.getBoolean("tiptop_enabled", true);
+        boolean ready = TopService.connected;
+        boolean enabled = ready && prefs.getBoolean("tiptop_enabled", true);
+        masterButton.setEnabled(ready);
+        masterButton.setAlpha(ready ? 1f : .45f);
         String label = enabled ? "Stop TipTop" : "Start TipTop";
         android.graphics.drawable.Drawable icon = getDrawable(
                 enabled ? R.drawable.ic_stop : R.drawable.ic_start).mutate();
@@ -411,7 +428,7 @@ public class MainActivity extends Activity {
         masterButton.setBackground(ripple(enabled ? accent : surface, 18));
         masterButton.setContentDescription(label);
         if (android.os.Build.VERSION.SDK_INT >= 30)
-            masterButton.setStateDescription(enabled ? "On" : "Off");
+            masterButton.setStateDescription(!ready ? "Accessibility required" : enabled ? "On" : "Off");
         updateStatus();
     }
 
