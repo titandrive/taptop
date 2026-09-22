@@ -1,0 +1,12 @@
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut android:shortcutId="toggle_tiptop" android:enabled="true"
+        android:icon="@drawable/ic_shortcut_toggle" android:shortcutShortLabel="@string/shortcut_toggle">
+        <intent android:action="android.intent.action.VIEW"
+            android:targetPackage="com.tiptop.app" android:targetClass="com.tiptop.app.ToggleShortcutActivity" />
+    </shortcut>
+    <shortcut android:shortcutId="scroll_to_top" android:enabled="true"
+        android:icon="@drawable/ic_shortcut_scroll" android:shortcutShortLabel="@string/shortcut_scroll">
+        <intent android:action="android.intent.action.VIEW"
+            android:targetPackage="com.tiptop.app" android:targetClass="com.tiptop.app.ScrollShortcutActivity" />
+    </shortcut>
+</shortcuts>

@@ -33,6 +33,7 @@ import java.util.List;
 public class TopService extends AccessibilityService {
     public static final String ACTION_UPDATE = "com.tiptop.app.UPDATE";
     public static final String ACTION_REFRESH_APPEARANCE = "com.tiptop.app.REFRESH_APPEARANCE";
+    public static final String ACTION_SCROLL_TO_TOP = "com.tiptop.app.SCROLL_TO_TOP";
     public static volatile boolean connected = false;
     private static final List<Runnable> connectionListeners = new ArrayList<>();
 
@@ -73,6 +74,10 @@ public class TopService extends AccessibilityService {
             "androidx.core.view.accessibility.action.ARGUMENT_SCROLL_AMOUNT_FLOAT";
     private final BroadcastReceiver update = new BroadcastReceiver() {
         @Override public void onReceive(Context context, Intent intent) {
+            if (ACTION_SCROLL_TO_TOP.equals(intent.getAction())) {
+                scrollToTop();
+                return;
+            }
             if (ACTION_REFRESH_APPEARANCE.equals(intent.getAction())) {
                 if (bar != null) applyBarAppearance(bar);
                 return;
@@ -88,6 +93,7 @@ public class TopService extends AccessibilityService {
         choreographer = Choreographer.getInstance();
         IntentFilter filter = new IntentFilter(ACTION_UPDATE);
         filter.addAction(ACTION_REFRESH_APPEARANCE);
+        filter.addAction(ACTION_SCROLL_TO_TOP);
         registerReceiver(update, filter, Context.RECEIVER_NOT_EXPORTED);
         showBar();
         setConnected(true);

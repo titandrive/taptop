@@ -8,6 +8,36 @@ At Maximum speed, lists that support AndroidX granular accessibility scrolling, 
 
 Settings use the [Catppuccin palette](https://catppuccin.com/palette/): Latte for light mode and Macchiato for dark mode. Choose System, Light, or Dark; System follows the phone’s appearance. Grouped controls include a fixed, solid tap-bar color example, persistent theme and haptic preferences, and a matching launcher icon. While TipTop is in the foreground and the bar is hidden, a dotted outline in the theme highlight marks the actual tap area. Show tap bar replaces the outline with the selected color fill. Leaving TipTop removes the outline and follows the saved visibility setting. The color example keeps a fixed size and position at full opacity, even when the actual bar is hidden. The geometry controls remain available; the color and opacity controls collapse. The color picker above opacity uses an Android-style swatch palette. Tapping a color applies it immediately; Default restores the automatic theme highlight. Reset all restores width, height, offset, and opacity without changing visibility or position. Existing scrolling and bar preferences are preserved.
 
+## Quick Settings
+
+Add the **TipTop** tile using the Quick Settings edit screen. It toggles the same Enable TipTop setting as the app and reflects changes made in either place. Turning it off removes the tap area and stops further scrolling requests; turning it back on preserves size, position, visibility, and color. Accessibility access must already be enabled for scrolling to work.
+
+## Gesture shortcuts
+
+**Toggle TipTop** and **Scroll to top** are available as Android app shortcuts, including launchers’ app-icon menus and gesture shortcut pickers. Legacy Create shortcut pickers are also supported. Toggle mirrors the master switch and Quick Settings tile. Scroll to top acts on the current app without opening TipTop, using the existing speed and scrolling behavior; TipTop and its accessibility service must be enabled. Choosing a shortcut in a picker only configures it, without executing it.
+
+## Tasker / MacroDroid intents
+
+Tap the info button at the top of TipTop for setup instructions and copyable intent fields.
+
+Use **Send Intent**, with target **Broadcast Receiver** (Tasker) or **Broadcast** (MacroDroid):
+
+| Field | Value |
+| --- | --- |
+| Action: toggle on/off | `com.tiptop.app.action.TOGGLE` |
+| Action: scroll to top | `com.tiptop.app.action.SCROLL_TO_TOP` |
+| Package | `com.tiptop.app` |
+| Class | `com.tiptop.app.AutomationReceiver` |
+
+Choose one action per intent. Leave data, MIME type, categories, and extras empty. These explicit broadcasts work without opening TipTop. Toggle changes the same master setting; scrolling respects that setting and requires accessibility access. The receiver accepts only these two actions.
+
+For example:
+
+```sh
+adb shell am broadcast -a com.tiptop.app.action.TOGGLE -n com.tiptop.app/.AutomationReceiver
+adb shell am broadcast -a com.tiptop.app.action.SCROLL_TO_TOP -n com.tiptop.app/.AutomationReceiver
+```
+
 ## Build
 
 Open this folder in Android Studio and build the `app` module. Android SDK 34 and JDK 17 are required. The project uses Android Gradle Plugin 8.4.2. The minimum supported Android version is 8.0 (API 26).

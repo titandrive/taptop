@@ -3,6 +3,8 @@ package com.tiptop.app;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.ComponentName;
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.res.ColorStateList;
@@ -22,6 +24,7 @@ import android.widget.ScrollView;
 import android.widget.SeekBar;
 import android.widget.Switch;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -37,6 +40,11 @@ public class MainActivity extends Activity {
     private BarPreview preview;
     private final List<Runnable> refreshBarSliders = new ArrayList<>();
     private final Runnable connectionChanged = this::updateStatus;
+    private Switch masterSwitch;
+    private boolean syncingMasterSwitch;
+    private final SharedPreferences.OnSharedPreferenceChangeListener settingChanged = (preferences, key) -> {
+        if ("tiptop_enabled".equals(key)) syncMasterSwitch();
+    };
     private boolean dark;
     private int base, card, surface, ink, muted, accent, green;
 
@@ -120,13 +128,68 @@ public class MainActivity extends Activity {
         addText(words, "TipTop", 36, ink, true, 0, 2);
         addText(words, "Back to the top. Just like that.", 14, muted, false, 0, 0);
         row.addView(words, new LinearLayout.LayoutParams(0, -2, 1));
-        TextView icon = text("↑", 32, accent, true);
+        TextView icon = text("ⓘ", 28, accent, false);
         icon.setGravity(Gravity.CENTER);
-        icon.setBackground(shape(surface, 20));
-        icon.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        icon.setBackground(ripple(surface, 20));
+        icon.setContentDescription("Shortcuts and automation info");
+        icon.setAccessibilityDelegate(buttonDelegate());
+        icon.setOnClickListener(v -> showShortcutInfo());
         row.addView(icon, new LinearLayout.LayoutParams(dp(60), dp(60)));
         content.addView(row);
         space(content, 24);
+    }
+
+    private void showShortcutInfo() {
+        LinearLayout body = column();
+        body.setPadding(dp(24), dp(4), dp(24), dp(16));
+        addText(body, "Gesture shortcuts", 17, ink, true, 0, 8);
+        addText(body, "In your gesture app, choose an app shortcut, then TipTop. Select Toggle TipTop or Scroll to top. These also appear when you long-press TipTop’s app icon.", 14, muted, false, 0, 16);
+        addText(body, "Quick Settings", 17, ink, true, 0, 8);
+        addText(body, "Edit your Quick Settings panel and add the TipTop tile to toggle TipTop on or off.", 14, muted, false, 0, 16);
+        addText(body, "Tasker & MacroDroid", 17, ink, true, 0, 8);
+        addText(body, "Choose Send Intent. Set the target to Broadcast Receiver in Tasker, or Broadcast in MacroDroid. Use one action below with the package and class shown. Leave other fields empty.", 14, muted, false, 0, 8);
+        addText(body, "Tap a field to copy it.", 13, accent, false, 0, 12);
+        copyableInfo(body, "Toggle on/off action", ShortcutActions.ACTION_TOGGLE);
+        copyableInfo(body, "Scroll to top action", ShortcutActions.ACTION_SCROLL_TO_TOP);
+        copyableInfo(body, "Package", getPackageName());
+        copyableInfo(body, "Class", AutomationReceiver.class.getName());
+        addText(body, "Scrolling uses your selected speed and requires TipTop and its accessibility service to be enabled. Toggle changes the same master switch as the app and tile.", 13, muted, false, 12, 0);
+        ScrollView details = new ScrollView(this);
+        details.setBackgroundColor(card);
+        if (android.os.Build.VERSION.SDK_INT >= 29) details.setForceDarkAllowed(false);
+        details.addView(body);
+        TextView title = text("Shortcuts & automation", 20, ink, true);
+        title.setPadding(dp(24), dp(24), dp(24), dp(16));
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setCustomTitle(title)
+                .setView(details)
+                .setPositiveButton("Done", null)
+                .create();
+        dialog.show();
+        dialog.getWindow().setBackgroundDrawable(shape(card, 24));
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setTextColor(accent);
+    }
+
+    private void copyableInfo(LinearLayout parent, String label, String value) {
+        LinearLayout field = column();
+        field.setPadding(dp(12), dp(10), dp(12), dp(10));
+        field.setMinimumHeight(dp(48));
+        field.setBackground(ripple(base, 12));
+        addText(field, label + "  ·  Copy", 13, accent, true, 0, 4);
+        TextView detail = addText(field, value, 13, ink, false, 0, 0);
+        detail.setTypeface(Typeface.MONOSPACE);
+        field.setContentDescription("Copy " + label + ": " + value);
+        field.setAccessibilityDelegate(buttonDelegate());
+        field.setOnClickListener(v -> {
+            ClipboardManager clipboard = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+            clipboard.setPrimaryClip(ClipData.newPlainText(label, value));
+            // Android 13+ provides its own clipboard confirmation.
+            if (android.os.Build.VERSION.SDK_INT < 33)
+                Toast.makeText(this, label + " copied", Toast.LENGTH_SHORT).show();
+        });
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-1, -2);
+        params.bottomMargin = dp(8);
+        parent.addView(field, params);
     }
 
     private void buildStatus() {
@@ -148,10 +211,13 @@ public class MainActivity extends Activity {
     @Override protected void onStart() {
         super.onStart();
         TopService.addConnectionListener(connectionChanged);
+        prefs.registerOnSharedPreferenceChangeListener(settingChanged);
+        syncMasterSwitch();
     }
 
     @Override protected void onStop() {
         TopService.removeConnectionListener(connectionChanged);
+        prefs.unregisterOnSharedPreferenceChangeListener(settingChanged);
         super.onStop();
     }
 
@@ -190,6 +256,14 @@ public class MainActivity extends Activity {
                 : "Enable TipTop in accessibility settings to start scrolling.");
     }
 
+    private void syncMasterSwitch() {
+        if (masterSwitch == null) return;
+        syncingMasterSwitch = true;
+        masterSwitch.setChecked(prefs.getBoolean("tiptop_enabled", true));
+        syncingMasterSwitch = false;
+        updateStatus();
+    }
+
     @Override protected void onSaveInstanceState(Bundle state) {
         state.putInt("scroll_y", scroll.getScrollY());
         super.onSaveInstanceState(state);
@@ -210,7 +284,9 @@ public class MainActivity extends Activity {
         control.setThumbTintList(new ColorStateList(new int[][]{{android.R.attr.state_checked}, {}}, new int[]{accent, muted}));
         control.setTrackTintList(new ColorStateList(new int[][]{{android.R.attr.state_checked}, {}}, new int[]{alpha(accent, 90), surface}));
         control.setChecked(prefs.getBoolean(key, initial));
+        if (key.equals("tiptop_enabled")) masterSwitch = control;
         control.setOnCheckedChangeListener((button, checked) -> {
+            if (key.equals("tiptop_enabled") && syncingMasterSwitch) return;
             prefs.edit().putBoolean(key, checked).apply();
             if (key.equals("haptics") && checked) Haptics.click(button);
             if (key.equals("tiptop_enabled")) updateStatus();
