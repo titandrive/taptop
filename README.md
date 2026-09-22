@@ -17,6 +17,7 @@ Version **0.5.1** · Android **8.0+**
 
 ## Make it yours
 
+- **App filters:** use TipTop everywhere, block selected apps, or allow only selected apps.
 - **Five speeds:** Slowest, Slow, Medium, Fast, Maximum.
 - **Adjustable tap area:** change its width, height, position, and top offset.
 - **Optional visible bar:** choose a color and opacity, or hide it. The hidden area still works; a dotted outline helps you adjust it inside TipTop.

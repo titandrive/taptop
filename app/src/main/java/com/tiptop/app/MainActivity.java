@@ -90,6 +90,8 @@ public class MainActivity extends Activity {
         slider(behavior, "Scroll speed", "scroll_speed", 0, 4, 4);
         addText(behavior, "Choose how fast to scroll back to the top.", 13, muted, false, 0, 4);
 
+        buildAppFilter();
+
         section("TAP AREA");
         LinearLayout bar = card();
         addText(bar, "Make it yours", 19, ink, true, 0, 4);
@@ -143,6 +145,36 @@ public class MainActivity extends Activity {
         if (state != null) scroll.post(() -> scroll.scrollTo(0, state.getInt("scroll_y")));
     }
 
+    private void buildAppFilter() {
+        section("APPS");
+        LinearLayout panel = card();
+        LinearLayout selector = column();
+        panel.addView(selector, new LinearLayout.LayoutParams(-1, -2));
+        TextView description = addText(panel, "", 13, muted, false, 10, 10);
+        TextView manage = text("", 14, accent, true);
+        manage.setGravity(Gravity.CENTER);
+        manage.setMinHeight(dp(48));
+        manage.setBackground(ripple(base, 14));
+        manage.setAccessibilityDelegate(buttonDelegate());
+        panel.addView(manage, new LinearLayout.LayoutParams(-1, -2));
+        Runnable refresh = () -> {
+            String mode = AppFilter.mode(prefs);
+            boolean all = AppFilter.ALL.equals(mode);
+            int count = prefs.getStringSet(AppFilter.listKey(mode), java.util.Collections.emptySet()).size();
+            description.setText(all ? "TipTop works in all apps."
+                    : AppFilter.BLACKLIST.equals(mode) ? "Works in all apps except those you select."
+                    : "Works only in the apps you select.");
+            manage.setVisibility(all ? View.INVISIBLE : View.VISIBLE);
+            manage.setText((AppFilter.WHITELIST.equals(mode) ? "Allowed apps" : "Blocked apps") + " · " + count);
+        };
+        choices(selector, AppFilter.MODE,
+                new String[]{AppFilter.ALL, AppFilter.BLACKLIST, AppFilter.WHITELIST},
+                AppFilter.ALL, refresh);
+        manage.setOnClickListener(v -> AppPickerDialog.show(this, prefs, AppFilter.mode(prefs),
+                card, ink, muted, accent, () -> { refresh.run(); notifyAppFilter(); }));
+        refresh.run();
+    }
+
     private void buildHeader() {
         LinearLayout row = row();
         LinearLayout words = column();
@@ -185,6 +217,8 @@ public class MainActivity extends Activity {
         body.setPadding(dp(24), dp(4), dp(24), dp(16));
         addText(body, "How to use TipTop", 17, ink, true, 0, 8);
         addText(body, "Enable TipTop and its accessibility service to get started.\n\nTap the tap area to scroll to the top. Touch anywhere on the screen to stop.\n\nAdjust the scroll speed and tap area in the app. The tap area still works when the bar is hidden.\n\nUse the sun/moon button to change themes. Hold it to follow your system theme.", 14, muted, false, 0, 16);
+        addText(body, "App filters", 17, ink, true, 0, 8);
+        addText(body, "Choose All, Blacklist to exclude selected apps, or Whitelist to allow only selected apps. Excluded apps have no tap area and cannot be scrolled by shortcuts. Each list is saved separately.", 14, muted, false, 0, 16);
         addText(body, "Shortcuts", 17, ink, true, 0, 8);
         addText(body, "Long-press TipTop’s app icon to find Toggle TipTop and Scroll to top. You can also select them in apps that support app shortcuts, including launchers and gesture apps.", 14, muted, false, 0, 16);
         addText(body, "Quick Settings", 17, ink, true, 0, 8);
@@ -526,6 +560,11 @@ public class MainActivity extends Activity {
     }
 
     private LinearLayout choices(LinearLayout parent, String key, String[] options, String initial) {
+        return choices(parent, key, options, initial, null);
+    }
+
+    private LinearLayout choices(LinearLayout parent, String key, String[] options, String initial,
+            Runnable onChanged) {
         LinearLayout group = row();
         group.setPadding(dp(4), dp(4), dp(4), dp(4));
         group.setBackground(shape(base, 16));
@@ -538,16 +577,19 @@ public class MainActivity extends Activity {
             group.addView(choice, new LinearLayout.LayoutParams(0, -2, 1));
             choice.setOnClickListener(v -> {
                 if (option.equals(prefs.getString(key, initial))) return;
+                if (prefs.getBoolean("haptics", true)) Haptics.click(v);
                 prefs.edit().putString(key, option).apply();
                 if (key.equals("theme")) recreate();
                 else {
                     updateChoices(group, option);
-                    notifyService();
+                    if (AppFilter.MODE.equals(key)) notifyAppFilter();
+                    else notifyService();
                     if (preview != null) preview.invalidate();
                 }
+                if (onChanged != null) onChanged.run();
             });
         }
-        updateChoices(group, prefs.getString(key, initial));
+        updateChoices(group, AppFilter.MODE.equals(key) ? AppFilter.mode(prefs) : prefs.getString(key, initial));
         parent.addView(group, new LinearLayout.LayoutParams(-1, -2));
         return group;
     }
@@ -665,6 +707,7 @@ public class MainActivity extends Activity {
 
     private void space(LinearLayout parent, int height) { parent.addView(new View(this), new LinearLayout.LayoutParams(1, dp(height))); }
     private int alpha(int color, int opacity) { return (color & 0x00ffffff) | (opacity << 24); }
+    private void notifyAppFilter() { sendBroadcast(new Intent(TopService.ACTION_UPDATE_APP_FILTER).setPackage(getPackageName())); }
     private void notifyService() { sendBroadcast(new Intent(TopService.ACTION_UPDATE).setPackage(getPackageName())); }
     private int dp(float n) { return (int)(n * getResources().getDisplayMetrics().density + .5f); }
 

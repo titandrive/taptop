@@ -31,6 +31,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class TopService extends AccessibilityService {
+    public static final String ACTION_UPDATE_APP_FILTER = "com.tiptop.app.UPDATE_APP_FILTER";
     public static final String ACTION_UPDATE = "com.tiptop.app.UPDATE";
     public static final String ACTION_REFRESH_APPEARANCE = "com.tiptop.app.REFRESH_APPEARANCE";
     public static final String ACTION_SCROLL_TO_TOP = "com.tiptop.app.SCROLL_TO_TOP";
@@ -74,6 +75,10 @@ public class TopService extends AccessibilityService {
             "androidx.core.view.accessibility.action.ARGUMENT_SCROLL_AMOUNT_FLOAT";
     private final BroadcastReceiver update = new BroadcastReceiver() {
         @Override public void onReceive(Context context, Intent intent) {
+            if (ACTION_UPDATE_APP_FILTER.equals(intent.getAction())) {
+                refreshAppFilter();
+                return;
+            }
             if (ACTION_SCROLL_TO_TOP.equals(intent.getAction())) {
                 scrollToTop();
                 return;
@@ -82,6 +87,7 @@ public class TopService extends AccessibilityService {
                 if (bar != null) applyBarAppearance(bar);
                 return;
             }
+            if (dragScroller != null && !currentAppAllowed()) cancelDragOnTouch();
             stopNativeScroll("settings changed");
             showBar();
         }
@@ -94,12 +100,17 @@ public class TopService extends AccessibilityService {
         IntentFilter filter = new IntentFilter(ACTION_UPDATE);
         filter.addAction(ACTION_REFRESH_APPEARANCE);
         filter.addAction(ACTION_SCROLL_TO_TOP);
+        filter.addAction(ACTION_UPDATE_APP_FILTER);
         registerReceiver(update, filter, Context.RECEIVER_NOT_EXPORTED);
         showBar();
         setConnected(true);
     }
 
     @Override public void onAccessibilityEvent(AccessibilityEvent event) {
+        if (event.getEventType() == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
+                || event.getEventType() == AccessibilityEvent.TYPE_WINDOWS_CHANGED) {
+            if (!AppFilter.ALL.equals(AppFilter.mode(prefs))) refreshAppFilter();
+        }
         if (movingList == null) return;
         if (event.getEventType() == AccessibilityEvent.TYPE_VIEW_SCROLLED) {
             AccessibilityNodeInfo source = event.getSource();
@@ -141,7 +152,7 @@ public class TopService extends AccessibilityService {
     private void showBar() {
         if (windows == null) return;
         if (bar != null) { windows.removeView(bar); bar = null; }
-        if (!prefs.getBoolean("tiptop_enabled", true)) return;
+        if (!prefs.getBoolean("tiptop_enabled", true) || !currentAppAllowed()) return;
         View view = new View(this);
         applyBarAppearance(view);
         view.setContentDescription("Scroll to top");
@@ -195,6 +206,11 @@ public class TopService extends AccessibilityService {
 
     private void scrollToTop() {
         if (!prefs.getBoolean("tiptop_enabled", true)) return;
+        if (!currentAppAllowed()) {
+            if (dragScroller != null) cancelDragOnTouch();
+            stopNativeScroll("app excluded");
+            return;
+        }
         if (dragScroller != null) { stopNativeScroll("bar tap"); return; }
         if (movingList != null) { stopNativeScroll("bar tap"); return; }
         AccessibilityNodeInfo target = findScrollable();
@@ -422,7 +438,7 @@ public class TopService extends AccessibilityService {
         Haptics.click(view);
     }
 
-    private AccessibilityNodeInfo findScrollable() {
+    private AccessibilityNodeInfo currentAppRoot() {
         List<AccessibilityWindowInfo> all = getWindows();
         if (all == null) return null;
         AccessibilityWindowInfo chosen = null;
@@ -434,8 +450,42 @@ public class TopService extends AccessibilityService {
             if (chosen == null || window.isFocused()) chosen = window;
         }
         if (chosen == null) return null;
-        AccessibilityNodeInfo root = chosen.getRoot();
-        if (root == null) return null;
+        return chosen.getRoot();
+    }
+
+    private boolean currentAppAllowed() {
+        if (AppFilter.ALL.equals(AppFilter.mode(prefs))) return true;
+        AccessibilityNodeInfo root = currentAppRoot();
+        return AppFilter.allows(prefs, root == null ? null : root.getPackageName());
+    }
+
+    private void refreshAppFilter() {
+        // Switching back to All can restore a removed bar without recreating
+        // an existing one or inspecting the foreground window.
+        if (AppFilter.ALL.equals(AppFilter.mode(prefs))) {
+            if (bar == null && prefs.getBoolean("tiptop_enabled", true)) showBar();
+            return;
+        }
+        AccessibilityNodeInfo root = currentAppRoot();
+        CharSequence packageName = root == null ? null : root.getPackageName();
+        boolean allowed = AppFilter.allows(prefs, packageName);
+        if (!allowed || (movingList != null && (packageName == null
+                || !packageName.equals(movingList.getPackageName())))) {
+            if (dragScroller != null) cancelDragOnTouch();
+            stopNativeScroll("app filter or foreground changed");
+        }
+        if (!allowed) {
+            if (bar != null) { windows.removeView(bar); bar = null; }
+        } else if (bar == null && prefs.getBoolean("tiptop_enabled", true)) {
+            showBar();
+        }
+    }
+
+    private AccessibilityNodeInfo findScrollable() {
+        AccessibilityNodeInfo root = currentAppRoot();
+        // Check the chosen foreground app, never fall through to an allowed
+        // background window. This also covers shortcuts and automation intents.
+        if (root == null || !AppFilter.allows(prefs, root.getPackageName())) return null;
         ArrayDeque<AccessibilityNodeInfo> queue = new ArrayDeque<>();
         ArrayDeque<Integer> depths = new ArrayDeque<>();
         queue.add(root);
