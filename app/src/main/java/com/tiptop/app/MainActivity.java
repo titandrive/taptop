@@ -321,6 +321,7 @@ public class MainActivity extends Activity {
 
     @Override protected void onResume() {
         super.onResume();
+        AppPickerDialog.preload(this, prefs);
         foreground = true;
         notifyBarAppearance();
         updateStatus();

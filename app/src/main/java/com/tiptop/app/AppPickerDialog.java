@@ -3,6 +3,7 @@ package com.tiptop.app;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Intent;
+import android.content.Context;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.content.pm.ApplicationInfo;
@@ -33,9 +34,30 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.FutureTask;
+import java.util.concurrent.ExecutionException;
 
 /** Selection is saved only on Done; searches never discard hidden selections. */
 final class AppPickerDialog {
+    private static volatile List<Entry> cachedApps;
+    private static FutureTask<List<Entry>> appLoad;
+
+    // Warm the catalog while the settings screen opens, and refresh on returning
+    // to the app so installs, removals, and renamed apps are picked up.
+    static synchronized void preload(Context context, SharedPreferences prefs) {
+        if (appLoad != null && !appLoad.isDone()) return;
+        PackageManager packages = context.getApplicationContext().getPackageManager();
+        Set<String> saved = new HashSet<>(prefs.getStringSet(
+                AppFilter.listKey(AppFilter.BLACKLIST), Collections.emptySet()));
+        saved.addAll(prefs.getStringSet(AppFilter.listKey(AppFilter.WHITELIST), Collections.emptySet()));
+        appLoad = new FutureTask<>(() -> {
+            List<Entry> loaded = loadApps(packages, saved);
+            cachedApps = loaded;
+            return loaded;
+        });
+        new Thread(appLoad, "TipTop-app-catalog").start();
+    }
+
     static void show(Activity activity, SharedPreferences prefs, String mode,
             int card, int ink, int muted, int accent, Runnable onSaved) {
         String key = AppFilter.listKey(mode);
@@ -197,40 +219,67 @@ final class AppPickerDialog {
                 | android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
         int height = (int) (activity.getResources().getDisplayMetrics().heightPixels * .8f);
         dialog.getWindow().setLayout(-1, height);
-        PackageManager packages = activity.getApplicationContext().getPackageManager();
-        // Package labels and icons can involve disk/binder work; keep it off the UI thread.
-        new Thread(() -> {
-            Map<String, Entry> byPackage = new HashMap<>();
-            for (String category : new String[]{Intent.CATEGORY_LAUNCHER, Intent.CATEGORY_HOME}) {
-                Intent launcher = new Intent(Intent.ACTION_MAIN).addCategory(category);
-                for (ResolveInfo app : packages.queryIntentActivities(launcher, 0)) {
-                    String name = app.activityInfo.packageName;
-                    if (!byPackage.containsKey(name))
-                        byPackage.put(name, new Entry(name, app.loadLabel(packages).toString(),
-                                app.loadIcon(packages)));
-                }
+        List<Entry> cached = cachedApps;
+        if (cached != null) {
+            all.addAll(cached);
+            selectAll.setEnabled(true);
+            refresh.run();
+        }
+        FutureTask<List<Entry>> pending;
+        synchronized (AppPickerDialog.class) {
+            if (appLoad == null) preload(activity, prefs);
+            pending = appLoad;
+        }
+        // Opening the picker reuses the catalog; it never starts another scan.
+        Runnable populate = () -> {
+            try {
+                List<Entry> loaded = pending.get();
+                activity.runOnUiThread(() -> {
+                    if (activity.isDestroyed() || !dialog.isShowing()) return;
+                    all.clear();
+                    all.addAll(loaded);
+                    selectAll.setEnabled(true);
+                    refresh.run();
+                });
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            } catch (ExecutionException e) {
+                activity.runOnUiThread(() -> {
+                    if (!activity.isDestroyed() && dialog.isShowing() && all.isEmpty())
+                        count.setText("Couldn’t load apps. Close and reopen TipTop to retry.");
+                });
             }
-            // Keep previously selected packages visible even after uninstalling an app.
-            for (String name : prefs.getStringSet(key, Collections.emptySet())) {
-                if (byPackage.containsKey(name)) continue;
-                try {
-                    ApplicationInfo app = packages.getApplicationInfo(name, 0);
+        };
+        if (pending.isDone()) populate.run();
+        else new Thread(populate, "TipTop-app-picker").start();
+    }
+
+    private static List<Entry> loadApps(PackageManager packages, Set<String> saved) {
+        Map<String, Entry> byPackage = new HashMap<>();
+        for (String category : new String[]{Intent.CATEGORY_LAUNCHER, Intent.CATEGORY_HOME}) {
+            Intent launcher = new Intent(Intent.ACTION_MAIN).addCategory(category);
+            for (ResolveInfo app : packages.queryIntentActivities(launcher, 0)) {
+                String name = app.activityInfo.packageName;
+                if (!byPackage.containsKey(name))
                     byPackage.put(name, new Entry(name, app.loadLabel(packages).toString(),
                             app.loadIcon(packages)));
-                } catch (PackageManager.NameNotFoundException e) {
-                    byPackage.put(name, new Entry(name, "Unavailable app", packages.getDefaultActivityIcon()));
-                }
             }
-            List<Entry> loaded = new ArrayList<>(byPackage.values());
-            Collator order = Collator.getInstance();
-            loaded.sort((a, b) -> order.compare(a.label, b.label));
-            activity.runOnUiThread(() -> {
-                if (activity.isDestroyed() || !dialog.isShowing()) return;
-                all.addAll(loaded);
-                selectAll.setEnabled(true);
-                refresh.run();
-            });
-        }, "TipTop-app-picker").start();
+        }
+        // Keep previously selected packages visible even after uninstalling an app.
+        for (String name : saved) {
+            if (byPackage.containsKey(name)) continue;
+            try {
+                ApplicationInfo app = packages.getApplicationInfo(name, 0);
+                byPackage.put(name, new Entry(name, app.loadLabel(packages).toString(),
+                        app.loadIcon(packages)));
+            } catch (PackageManager.NameNotFoundException e) {
+                byPackage.put(name, new Entry(name, "Unavailable app", packages.getDefaultActivityIcon()));
+            }
+        }
+        List<Entry> loaded = new ArrayList<>(byPackage.values());
+        Collator order = Collator.getInstance();
+        loaded.sort((a, b) -> order.compare(a.label, b.label));
+        return loaded;
     }
 
     private static final class Entry {
