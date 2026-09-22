@@ -5,9 +5,11 @@ import android.app.AlertDialog;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.content.pm.ApplicationInfo;
 import android.content.pm.ResolveInfo;
 import android.content.res.ColorStateList;
 import android.graphics.drawable.GradientDrawable;
+import android.graphics.drawable.Drawable;
 import android.os.Build;
 import android.text.Editable;
 import android.text.TextWatcher;
@@ -70,7 +72,11 @@ final class AppPickerDialog {
                 CheckedTextView row = recycled instanceof CheckedTextView
                         ? (CheckedTextView) recycled : new CheckedTextView(activity);
                 Entry app = getItem(position);
-                row.setText(app.label + "\n" + app.packageName);
+                row.setText(app.label);
+                int iconSize = dp(activity, 36);
+                app.icon.setBounds(0, 0, iconSize, iconSize);
+                row.setCompoundDrawablesRelative(app.icon, null, null, null);
+                row.setCompoundDrawablePadding(dp(activity, 12));
                 row.setTextSize(14);
                 row.setTextColor(ink);
                 row.setPadding(dp(activity, 4), dp(activity, 12), dp(activity, 4), dp(activity, 12));
@@ -92,6 +98,9 @@ final class AppPickerDialog {
                 if (app.label.toLowerCase(Locale.ROOT).contains(query)
                         || app.packageName.toLowerCase(Locale.ROOT).contains(query)) visible.add(app);
             }
+            // Stable sort keeps alphabetical order within each group.
+            visible.sort((a, b) -> Boolean.compare(
+                    selected.contains(b.packageName), selected.contains(a.packageName)));
             adapter.notifyDataSetChanged();
             count.setText(selected.size() + " selected" + (visible.isEmpty() ? " · No matching apps" : ""));
         };
@@ -134,19 +143,29 @@ final class AppPickerDialog {
             refresh.run();
         });
         PackageManager packages = activity.getApplicationContext().getPackageManager();
-        // Package labels can involve disk/binder work; keep it off the UI thread.
+        // Package labels and icons can involve disk/binder work; keep it off the UI thread.
         new Thread(() -> {
             Map<String, Entry> byPackage = new HashMap<>();
             for (String category : new String[]{Intent.CATEGORY_LAUNCHER, Intent.CATEGORY_HOME}) {
                 Intent launcher = new Intent(Intent.ACTION_MAIN).addCategory(category);
                 for (ResolveInfo app : packages.queryIntentActivities(launcher, 0)) {
                     String name = app.activityInfo.packageName;
-                    byPackage.put(name, new Entry(name, app.loadLabel(packages).toString()));
+                    if (!byPackage.containsKey(name))
+                        byPackage.put(name, new Entry(name, app.loadLabel(packages).toString(),
+                                app.loadIcon(packages)));
                 }
             }
             // Keep previously selected packages visible even after uninstalling an app.
-            for (String name : prefs.getStringSet(key, Collections.emptySet()))
-                if (!byPackage.containsKey(name)) byPackage.put(name, new Entry(name, name));
+            for (String name : prefs.getStringSet(key, Collections.emptySet())) {
+                if (byPackage.containsKey(name)) continue;
+                try {
+                    ApplicationInfo app = packages.getApplicationInfo(name, 0);
+                    byPackage.put(name, new Entry(name, app.loadLabel(packages).toString(),
+                            app.loadIcon(packages)));
+                } catch (PackageManager.NameNotFoundException e) {
+                    byPackage.put(name, new Entry(name, "Unavailable app", packages.getDefaultActivityIcon()));
+                }
+            }
             List<Entry> loaded = new ArrayList<>(byPackage.values());
             Collator order = Collator.getInstance();
             loaded.sort((a, b) -> order.compare(a.label, b.label));
@@ -160,7 +179,12 @@ final class AppPickerDialog {
 
     private static final class Entry {
         final String packageName, label;
-        Entry(String packageName, String label) { this.packageName = packageName; this.label = label; }
+        final Drawable icon;
+        Entry(String packageName, String label, Drawable icon) {
+            this.packageName = packageName;
+            this.label = label;
+            this.icon = icon;
+        }
     }
 
     private static int dp(Activity activity, int value) {
