@@ -42,7 +42,9 @@ An easy and intuitive way to scroll to the top of any app, with one tap. Just li
 
 ## App filtering
 
-- **All:** TapTop works in every app.
+Choose where TapTop works.
+
+- **All:** TapTop works in every app (default).
 - **Blacklist:** TapTop works everywhere except the apps you select.
 - **Whitelist:** TapTop works only in the apps you select. An empty list disables it everywhere.
 
