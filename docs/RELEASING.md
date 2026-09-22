@@ -25,3 +25,5 @@ Without this file, Gradle produces an unsigned release APK. Never publish that A
 4. Attach the verified APK as **TapTop.apk** to the version’s GitHub release. The README download button points to the latest release page.
 
 A release APK cannot update an existing debug installation because their signatures differ. Switching from a debug build requires uninstalling it first, which clears its settings. Normal release-to-release updates preserve settings.
+
+Version 0.6.0 changes the application ID to `com.taptop.app`. It installs separately from 0.5.x and does not migrate settings; the normal update behavior above applies to releases sharing the same application ID.

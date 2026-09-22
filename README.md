@@ -9,6 +9,8 @@ Version **0.5.1** · Android **8.0+**
 [<img src="docs/assets/badge_obtainium.png" alt="Get it on Obtainium" height="80">](https://apps.obtainium.imranr.dev/redirect?r=obtainium%3A%2F%2Fapp%2F%257B%2522id%2522%253A%2522com.taptop.app%2522%252C%2522url%2522%253A%2522https%253A%252F%252Fgithub.com%252Ftitandrive%252Ftaptop%2522%252C%2522author%2522%253A%2522TitanDrive%2522%252C%2522name%2522%253A%2522TapTop%2522%257D)
 [<img src="docs/assets/badge_github.png" alt="Get APK from GitHub" height="80">](https://github.com/titandrive/taptop/releases/latest)
 
+**Upgrading from 0.5.x:** TapTop now uses `com.taptop.app` and installs as a separate app. Enable its accessibility service and set up your preferences, shortcuts, and automations again. Disable the previous app’s accessibility service to avoid overlapping tap zones. In Obtainium, add TapTop using the button above.
+
 ## Get started
 
 1. Install and open TapTop.
