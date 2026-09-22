@@ -4,6 +4,7 @@ import android.accessibilityservice.AccessibilityService;
 import android.accessibilityservice.GestureDescription;
 import android.graphics.Path;
 import android.graphics.Rect;
+import android.os.SystemClock;
 import android.util.Log;
 
 /** Uses held pointer handovers for native lists, single-finger strokes for web content. */
@@ -31,10 +32,15 @@ final class ContinuousDragScroller {
         this.service = service;
         this.listener = listener;
         // Web content can interpret overlapping pointers as a pinch and stop
-        // panning. Finish each single-finger stroke before starting the next.
+        // panning. Replace its held pointer with a fresh gesture instead.
         this.singlePointer = singlePointer;
         float velocity = DragSpeed.pixelsPerSecond(speed, density);
-        float distance = Math.min(bounds.height() * .60f, velocity * .8f);
+        // WebViews need a pointer reset between strokes. Use more of the viewport and
+        // allow longer slow strokes to reduce those disruptive handoffs without
+        // changing velocity. Physical touches still cancel the in-flight stroke.
+        float distance = singlePointer
+                ? Math.min(bounds.height() * .80f, velocity * 1.6f)
+                : Math.min(bounds.height() * .60f, velocity * .8f);
         x = bounds.centerX();
         startY = bounds.centerY() - distance / 2;
         endY = startY + distance;
@@ -64,7 +70,7 @@ final class ContinuousDragScroller {
         if (finished) return;
         if (stopping) { release(); return; }
         GestureDescription.Builder builder = new GestureDescription.Builder();
-        if (heldStroke != null) {
+        if (heldStroke != null && !singlePointer) {
             // The replacement pointer goes down before the old one goes up.
             // A list already being dragged can switch pointers without a new
             // touch-slop threshold or a fling at the end of every screenful.
@@ -75,19 +81,24 @@ final class ContinuousDragScroller {
         // MotionEventInjector validates continuation using the first time step.
         // It must contain ONLY the old pointer. Introduce the new one at t=1,
         // then lift the old one at t=2, keeping a pointer down throughout.
-        long startTime = heldStroke == null ? 0 : 1;
+        // A fresh WebView gesture cancels the previous held pointer before its
+        // DOWN. Unlike UP, CANCEL does not start a fling between strokes.
+        long startTime = heldStroke == null || singlePointer ? 0 : 1;
         GestureDescription.StrokeDescription next =
-                new GestureDescription.StrokeDescription(drag, startTime, duration, !singlePointer);
+                new GestureDescription.StrokeDescription(drag, startTime, duration, true);
         builder.addStroke(next);
         inFlight = true;
+        final long dispatchedAt = SystemClock.uptimeMillis();
         if (!service.dispatchGesture(builder.build(), new AccessibilityService.GestureResultCallback() {
             @Override public void onCompleted(GestureDescription gesture) {
                 if (finished) return;
                 inFlight = false;
-                heldStroke = singlePointer ? null : next;
+                heldStroke = next;
                 completedSegments++;
                 if (completedSegments <= 2 || completedSegments % 10 == 0)
-                    Log.d("TipTopScroll", "drag segments completed=" + completedSegments);
+                    Log.d("TipTopScroll", "drag segments completed=" + completedSegments
+                            + "; durationMs=" + duration + "; callbackOverheadMs="
+                            + (SystemClock.uptimeMillis() - dispatchedAt - duration - startTime));
                 dispatchNext();
             }
             @Override public void onCancelled(GestureDescription gesture) {
