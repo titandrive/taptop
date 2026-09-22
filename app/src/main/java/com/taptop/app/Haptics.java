@@ -12,14 +12,21 @@ final class Haptics {
     private Haptics() {}
 
     static void click(View view) {
-        Context context = view.getContext();
+        if (!click(view.getContext()))
+            view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY);
+    }
+
+    static boolean click(Context context) {
         Vibrator vibrator;
         if (Build.VERSION.SDK_INT >= 31) {
             VibratorManager manager = (VibratorManager) context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE);
             vibrator = manager == null ? null : manager.getDefaultVibrator();
         } else vibrator = (Vibrator) context.getSystemService(Context.VIBRATOR_SERVICE);
-        if (vibrator != null && vibrator.hasVibrator() && Build.VERSION.SDK_INT >= 29)
+        if (vibrator == null || !vibrator.hasVibrator()) return false;
+        if (Build.VERSION.SDK_INT >= 29)
             vibrator.vibrate(VibrationEffect.createPredefined(VibrationEffect.EFFECT_CLICK));
-        else view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY);
+        else
+            vibrator.vibrate(VibrationEffect.createOneShot(20, VibrationEffect.DEFAULT_AMPLITUDE));
+        return true;
     }
 }

@@ -2,9 +2,11 @@ package com.taptop.app;
 
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.graphics.drawable.Icon;
 import android.os.Build;
 import android.service.quicksettings.Tile;
 import android.service.quicksettings.TileService;
+import android.widget.Toast;
 
 public final class TapTopTileService extends TileService {
     private SharedPreferences prefs;
@@ -51,6 +53,9 @@ public final class TapTopTileService extends TileService {
         prefs.edit().putBoolean("taptop_enabled", enabled).apply();
         sendBroadcast(new Intent(TopService.ACTION_UPDATE).setPackage(getPackageName()));
         refreshTile();
+        if (prefs.getBoolean("haptics", true)) Haptics.click(this);
+        Toast.makeText(this, enabled ? "TapTop enabled" : "TapTop disabled",
+                Toast.LENGTH_SHORT).show();
     }
 
     private void refreshTile() {
@@ -58,6 +63,7 @@ public final class TapTopTileService extends TileService {
         if (tile == null) return;
         boolean enabled = prefs.getBoolean("taptop_enabled", true);
         tile.setLabel("TapTop");
+        tile.setIcon(Icon.createWithResource(this, R.drawable.ic_tile_taptop));
         tile.setState(!TopService.connected ? Tile.STATE_UNAVAILABLE
                 : enabled ? Tile.STATE_ACTIVE : Tile.STATE_INACTIVE);
         tile.setContentDescription(!TopService.connected ? "TapTop: accessibility required"
