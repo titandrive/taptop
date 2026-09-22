@@ -15,7 +15,7 @@ import android.widget.Switch;
 import android.widget.TextView;
 
 public class MainActivity extends Activity {
-    private static final String[] SPEED_LABELS = {"Gentle", "Smooth", "Balanced", "Fast", "Turbo"};
+    private static final String[] SPEED_LABELS = {"Gentle", "Medium", "Strong", "Fast", "Maximum"};
     private SharedPreferences prefs;
     private TextView status;
     private LinearLayout content;
@@ -32,7 +32,7 @@ public class MainActivity extends Activity {
         scroll.addView(content);
         setContentView(scroll);
         label("TipTop", 32, true);
-        label("Tap the small bar near the top of any app to return to the start of a list.", 16, false);
+        label("Tap the small bar near the top of an app to scroll toward the start of its list.", 16, false);
         status = label("", 16, true);
         Button access = new Button(this);
         access.setText("Open accessibility settings");
@@ -46,7 +46,7 @@ public class MainActivity extends Activity {
         enabled.setOnCheckedChangeListener((button, checked) -> save("enabled", checked));
         content.addView(enabled);
         Switch legacySwipes = new Switch(this);
-        legacySwipes.setText("Use repeated swipes when direct scroll is unavailable");
+        legacySwipes.setText("Use one fling if native scrolling fails");
         legacySwipes.setTextColor(ink);
         legacySwipes.setChecked(prefs.getBoolean("legacy_swipes", true));
         legacySwipes.setOnCheckedChangeListener((button, checked) -> save("legacy_swipes", checked));
@@ -65,7 +65,7 @@ public class MainActivity extends Activity {
             row.addView(button, new LinearLayout.LayoutParams(0, dp(52), 1));
         }
         content.addView(row);
-        label("Native smooth scrolling is used when the list supports it. Other lists jump directly to the top if they expose a position action. Lists without either action use repeated swipes unless you turn that fallback off.", 14, false);
+        label("TipTop uses the app's scrolling actions to move toward the top. While the bar is red, touch the screen to stop further scrolling requests; the current animation may finish. That first touch is consumed. If native scrolling fails, the optional fling fallback may stop short on long lists.", 14, false);
     }
 
     @Override protected void onResume() {
@@ -83,7 +83,7 @@ public class MainActivity extends Activity {
         view.setText(text);
         view.setTextSize(size);
         view.setTextColor(ink);
-        if (bold) view.setTypeface(null, 1);
+        if (bold) view.setTypeface(null, android.graphics.Typeface.BOLD);
         view.setPadding(0, dp(8), 0, dp(8));
         content.addView(view);
         return view;
@@ -94,10 +94,10 @@ public class MainActivity extends Activity {
         SeekBar bar = new SeekBar(this);
         bar.setMax(SPEED_LABELS.length - 1);
         bar.setProgress(Math.max(0, Math.min(SPEED_LABELS.length - 1, prefs.getInt("speed", 3))));
-        caption.setText("Fallback swipe speed: " + SPEED_LABELS[bar.getProgress()]);
+        caption.setText("Fallback fling strength: " + SPEED_LABELS[bar.getProgress()]);
         bar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             public void onProgressChanged(SeekBar seek, int progress, boolean fromUser) {
-                caption.setText("Fallback swipe speed: " + SPEED_LABELS[progress]);
+                caption.setText("Fallback fling strength: " + SPEED_LABELS[progress]);
                 if (fromUser) prefs.edit().putInt("speed", progress).apply();
             }
             public void onStartTrackingTouch(SeekBar seek) {}

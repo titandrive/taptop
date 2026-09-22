@@ -14,9 +14,11 @@ import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.SystemClock;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
 import android.os.VibratorManager;
+import android.util.Log;
 import android.view.Gravity;
 import android.view.HapticFeedbackConstants;
 import android.view.MotionEvent;
@@ -34,21 +36,29 @@ public class TopService extends AccessibilityService {
     public static volatile boolean connected = false;
     private WindowManager windows;
     private View bar;
-    private View leftStopRegion;
-    private View rightStopRegion;
     private SharedPreferences prefs;
-    private static final int[] SWIPE_DURATION_MS = {700, 520, 380, 240, 170};
-    private static final int[] PAUSE_MS = {70, 60, 40, 20, 10};
     private final Handler handler = new Handler(Looper.getMainLooper());
-    private boolean scrolling;
-    private int steps;
-    private int missingActionChecks;
-    private int runId;
+    private AccessibilityNodeInfo movingList;
+    private View stopRegion;
     private boolean consumingStopTouch;
-    private String scrollPackage;
-    private String scrollClass;
+    private long scrollStarted;
+    private long lastProgress;
+    private long lastRefresh;
+    private int scrollEvents;
+    private long scrollDistance;
+    private final Runnable advanceScroll = this::advanceNativeScroll;
+    private static final int[] FLING_DURATION_MS = {220, 160, 120, 90, 65};
+    // AndroidX publishes these separately from the platform's API 35 properties.
+    private static final String COMPAT_BOOLEAN_PROPERTIES =
+            "androidx.view.accessibility.AccessibilityNodeInfoCompat.BOOLEAN_PROPERTY_KEY";
+    private static final int COMPAT_GRANULAR_SCROLLING = 1 << 26;
+    private static final String COMPAT_SCROLL_AMOUNT =
+            "androidx.core.view.accessibility.action.ARGUMENT_SCROLL_AMOUNT_FLOAT";
     private final BroadcastReceiver update = new BroadcastReceiver() {
-        @Override public void onReceive(Context context, Intent intent) { showBar(); }
+        @Override public void onReceive(Context context, Intent intent) {
+            stopNativeScroll("settings changed");
+            showBar();
+        }
     };
 
     @Override protected void onServiceConnected() {
@@ -59,11 +69,26 @@ public class TopService extends AccessibilityService {
         showBar();
     }
 
-    @Override public void onAccessibilityEvent(AccessibilityEvent event) {}
-    @Override public void onInterrupt() { stopScroll(); }
+    @Override public void onAccessibilityEvent(AccessibilityEvent event) {
+        if (movingList == null) return;
+        if (event.getEventType() == AccessibilityEvent.TYPE_VIEW_SCROLLED
+                && movingList.equals(event.getSource())) {
+            lastProgress = SystemClock.uptimeMillis();
+            scrollEvents++;
+            if (android.os.Build.VERSION.SDK_INT >= 28)
+                scrollDistance += Math.abs((long) event.getScrollDeltaY());
+        } else if (event.getEventType() == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
+                && event.getPackageName() != null
+                && !event.getPackageName().equals(movingList.getPackageName())
+                && !event.getPackageName().equals(getPackageName())) {
+            stopNativeScroll("app changed");
+        }
+    }
+    @Override public void onInterrupt() { stopNativeScroll("interrupted"); }
     @Override public void onDestroy() {
         connected = false;
-        stopScroll();
+        consumingStopTouch = false;
+        stopNativeScroll("service stopped");
         try { unregisterReceiver(update); } catch (IllegalArgumentException ignored) {}
         if (bar != null) windows.removeView(bar);
         bar = null;
@@ -82,17 +107,13 @@ public class TopService extends AccessibilityService {
         view.setAlpha(prefs.getInt("opacity", 70) / 100f);
         view.setContentDescription("Scroll to top");
         view.setOnClickListener(v -> scrollToTop());
-        final boolean[] stoppedOnDown = {false};
         view.setOnTouchListener((v, event) -> {
             if (event.getActionMasked() == MotionEvent.ACTION_DOWN) {
                 playTapFeedback(v);
-                stoppedOnDown[0] = scrolling;
-                if (stoppedOnDown[0]) stopScroll();
                 return true;
             }
             if (event.getActionMasked() == MotionEvent.ACTION_UP) {
-                if (!stoppedOnDown[0]) v.performClick();
-                stoppedOnDown[0] = false;
+                v.performClick();
                 return true;
             }
             return true;
@@ -113,17 +134,20 @@ public class TopService extends AccessibilityService {
     }
 
     private void scrollToTop() {
-        if (scrolling) { stopScroll(); return; }
-        stopScroll();
+        if (movingList != null) { stopNativeScroll("bar tap"); return; }
         AccessibilityNodeInfo target = findScrollable();
         if (target != null && supports(target, AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD)
                 && supportsGranularScroll(target)) {
             Bundle args = new Bundle();
             args.putFloat("android.view.accessibility.action.ARGUMENT_SCROLL_AMOUNT_FLOAT",
                     Float.POSITIVE_INFINITY);
+            args.putFloat(COMPAT_SCROLL_AMOUNT, Float.POSITIVE_INFINITY);
             // RecyclerView handles this as one native smoothScrollToPosition(0).
             // Leave the screen touchable so a normal touch can cancel its animation.
-            if (target.performAction(AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD, args)) return;
+            if (target.performAction(AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD, args)) {
+                logScrollMode("native smooth", target);
+                return;
+            }
         }
         if (target != null && supports(target,
                 AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_TO_POSITION.getId())) {
@@ -131,73 +155,119 @@ public class TopService extends AccessibilityService {
             args.putInt(AccessibilityNodeInfo.ACTION_ARGUMENT_ROW_INT, 0);
             args.putInt(AccessibilityNodeInfo.ACTION_ARGUMENT_COLUMN_INT, 0);
             if (target.performAction(
-                    AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_TO_POSITION.getId(), args)) return;
+                    AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_TO_POSITION.getId(), args)) {
+                logScrollMode("direct position", target);
+                return;
+            }
         }
-        if (!prefs.getBoolean("legacy_swipes", true)) return;
-        scrolling = true;
-        if (bar != null) bar.getBackground().setTint(Color.rgb(220, 64, 64));
-        steps = 0;
-        missingActionChecks = 0;
-        scrollPackage = null;
-        scrollClass = null;
-        swipeStep(runId);
+        if (target != null && supports(target, AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD)
+                && target.performAction(AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD)) {
+            movingList = target;
+            scrollStarted = lastProgress = lastRefresh = SystemClock.uptimeMillis();
+            scrollEvents = 0;
+            scrollDistance = 0;
+            logScrollMode("continuous native", target);
+            showStopRegion();
+            if (movingList == null) return;
+            if (bar != null) bar.getBackground().setTint(Color.rgb(220, 64, 64));
+            handler.postDelayed(advanceScroll, 16);
+            return;
+        }
+        // Keep the existing preference so an explicitly disabled fallback stays off.
+        if (!prefs.getBoolean("legacy_swipes", true) || target == null
+                || !supports(target, AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD)) return;
+        flingOnce(target);
     }
 
-    private void stopScroll() {
-        scrolling = false;
-        runId++;
-        handler.removeCallbacksAndMessages(null);
-        if (!consumingStopTouch) removeStopRegions();
+    private void advanceNativeScroll() {
+        if (movingList == null) return;
+        long now = SystemClock.uptimeMillis();
+        if (now - scrollStarted > 60000 || now - lastProgress > 1500) {
+            stopNativeScroll("no progress or time limit");
+            return;
+        }
+        // Refresh metadata less often than animation requests to keep tree queries
+        // off the per-frame path. Retain this exact node rather than picking a parent.
+        if (now - lastRefresh >= 200) {
+            lastRefresh = now;
+            if (!movingList.refresh() || !movingList.isVisibleToUser()
+                    || !supports(movingList, AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD)) {
+                stopNativeScroll("top or target unavailable");
+                return;
+            }
+        }
+        // Renew the native animation before its easing curve slows to a stop.
+        // No finger-down events interrupt the list, and no page-sized pauses occur.
+        if (!movingList.performAction(AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD)) {
+            stopNativeScroll("native action finished");
+            return;
+        }
+        handler.postAtTime(advanceScroll, Math.max(now + 16, SystemClock.uptimeMillis() + 1));
+    }
+
+    private void stopNativeScroll(String reason) {
+        handler.removeCallbacks(advanceScroll);
+        if (movingList != null) Log.d("TipTopScroll", "native stopped: " + reason
+                + "; events=" + scrollEvents + "; distance=" + scrollDistance
+                + "; elapsed=" + (SystemClock.uptimeMillis() - scrollStarted));
+        movingList = null;
+        if (!consumingStopTouch) removeStopRegion();
         if (bar != null) bar.getBackground().setTint(Color.rgb(39, 104, 244));
     }
 
-    private void swipeStep(int id) {
-        if (!scrolling || id != runId) return;
-        if (steps >= 200) { stopScroll(); return; }
-        AccessibilityNodeInfo target = findScrollable();
-        if (target == null) {
-            if (scrollClass == null) stopScroll(); else retryMissingAction(id);
-            return;
-        }
-        String targetPackage = String.valueOf(target.getPackageName());
-        if (scrollPackage != null && !scrollPackage.equals(targetPackage)) { stopScroll(); return; }
-        scrollPackage = targetPackage;
-        if (!supports(target, AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD)) {
-            retryMissingAction(id);
-            return;
-        }
-        missingActionChecks = 0;
-        scrollClass = String.valueOf(target.getClassName());
-        Rect bounds = new Rect();
-        target.getBoundsInScreen(bounds);
-        if (bounds.height() < dp(180)) { stopScroll(); return; }
-        float x = bounds.centerX();
-        float startY = bounds.top + bounds.height() * .12f;
-        float endY = bounds.bottom - bounds.height() * .08f;
-        if (leftStopRegion == null) showStopRegions(x);
-        Path path = new Path();
-        path.moveTo(x, startY);
-        path.lineTo(x, endY);
-        int speed = Math.max(0, Math.min(SWIPE_DURATION_MS.length - 1, prefs.getInt("speed", 3)));
-        int pause = PAUSE_MS[speed];
-        GestureDescription gesture = new GestureDescription.Builder()
-                .addStroke(new GestureDescription.StrokeDescription(path, 0, SWIPE_DURATION_MS[speed]))
-                .build();
-        steps++;
-        if (!dispatchGesture(gesture, new GestureResultCallback() {
-            @Override public void onCompleted(GestureDescription description) {
-                if (id != runId) return;
-                handler.postDelayed(() -> swipeStep(id), pause);
+    private void showStopRegion() {
+        removeStopRegion();
+        View region = new View(this);
+        region.setOnTouchListener((view, event) -> {
+            if (event.getActionMasked() == MotionEvent.ACTION_DOWN) {
+                consumingStopTouch = true;
+                stopNativeScroll("screen touch");
+            } else if (event.getActionMasked() == MotionEvent.ACTION_UP
+                    || event.getActionMasked() == MotionEvent.ACTION_CANCEL) {
+                consumingStopTouch = false;
+                removeStopRegion();
             }
-            @Override public void onCancelled(GestureDescription description) {
-                if (id == runId) { stopScroll(); }
-            }
-        }, handler)) { stopScroll(); }
+            return true;
+        });
+        WindowManager.LayoutParams params = new WindowManager.LayoutParams(
+                WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT,
+                WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+                android.graphics.PixelFormat.TRANSLUCENT);
+        try { windows.addView(region, params); stopRegion = region; }
+        catch (WindowManager.BadTokenException ignored) { stopNativeScroll("overlay unavailable"); }
     }
 
-    private void retryMissingAction(int id) {
-        if (++missingActionChecks >= 8) stopScroll();
-        else handler.postDelayed(() -> swipeStep(id), 120);
+    private void removeStopRegion() {
+        if (stopRegion != null) { windows.removeView(stopRegion); stopRegion = null; }
+    }
+
+    private void flingOnce(AccessibilityNodeInfo target) {
+        Rect bounds = new Rect();
+        target.getBoundsInScreen(bounds);
+        if (!bounds.intersect(0, 0, getResources().getDisplayMetrics().widthPixels,
+                getResources().getDisplayMetrics().heightPixels)
+                || bounds.height() < dp(180)) return;
+        Path path = new Path();
+        path.moveTo(bounds.centerX(), bounds.top + bounds.height() * .20f);
+        path.lineTo(bounds.centerX(), bounds.top + bounds.height() * .80f);
+        int strength = Math.max(0, Math.min(FLING_DURATION_MS.length - 1,
+                prefs.getInt("speed", 3)));
+        GestureDescription gesture = new GestureDescription.Builder()
+                .addStroke(new GestureDescription.StrokeDescription(path, 0,
+                        FLING_DURATION_MS[strength]))
+                .build();
+        logScrollMode("single fling", target);
+        // Dispatch exactly once. A subsequent down would interrupt the app's
+        // momentum. Leave the list touchable so the user can stop it normally.
+        if (!dispatchGesture(gesture, new GestureResultCallback() {
+            @Override public void onCompleted(GestureDescription description) {
+                Log.d("TipTopScroll", "fling released; app controls momentum");
+            }
+            @Override public void onCancelled(GestureDescription description) {
+                Log.d("TipTopScroll", "fling cancelled");
+            }
+        }, null)) Log.d("TipTopScroll", "fling rejected");
     }
 
     private void playTapFeedback(View view) {
@@ -209,45 +279,6 @@ public class TopService extends AccessibilityService {
         if (vibrator != null && vibrator.hasVibrator() && android.os.Build.VERSION.SDK_INT >= 29)
             vibrator.vibrate(VibrationEffect.createPredefined(VibrationEffect.EFFECT_CLICK));
         else view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY);
-    }
-
-    private void showStopRegions(float swipeX) {
-        int screenWidth = getResources().getDisplayMetrics().widthPixels;
-        int gap = Math.max(2, dp(2));
-        int leftWidth = Math.max(0, Math.round(swipeX) - gap / 2);
-        int rightWidth = Math.max(0, screenWidth - Math.round(swipeX) - gap / 2);
-        leftStopRegion = addStopRegion(leftWidth, Gravity.LEFT | Gravity.TOP);
-        rightStopRegion = addStopRegion(rightWidth, Gravity.RIGHT | Gravity.TOP);
-    }
-
-    private View addStopRegion(int width, int gravity) {
-        if (width == 0) return null;
-        View region = new View(this);
-        region.setOnTouchListener((v, event) -> {
-            if (event.getActionMasked() == MotionEvent.ACTION_DOWN) {
-                consumingStopTouch = true;
-                stopScroll();
-            } else if (event.getActionMasked() == MotionEvent.ACTION_UP
-                    || event.getActionMasked() == MotionEvent.ACTION_CANCEL) {
-                consumingStopTouch = false;
-                handler.postDelayed(this::removeStopRegions, 80);
-            }
-            return true;
-        });
-        WindowManager.LayoutParams params = new WindowManager.LayoutParams(
-                width, WindowManager.LayoutParams.MATCH_PARENT,
-                WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
-                android.graphics.PixelFormat.TRANSLUCENT);
-        params.gravity = gravity;
-        try { windows.addView(region, params); return region; }
-        catch (WindowManager.BadTokenException ignored) { return null; }
-    }
-
-    private void removeStopRegions() {
-        if (windows == null) return;
-        if (leftStopRegion != null) { windows.removeView(leftStopRegion); leftStopRegion = null; }
-        if (rightStopRegion != null) { windows.removeView(rightStopRegion); rightStopRegion = null; }
     }
 
     private AccessibilityNodeInfo findScrollable() {
@@ -279,14 +310,12 @@ public class TopService extends AccessibilityService {
             AccessibilityNodeInfo node = queue.removeFirst();
             int depth = depths.removeFirst();
             if (!node.isVisibleToUser()) continue;
-            boolean matchesCurrentList = scrollClass == null
-                    || scrollClass.equals(String.valueOf(node.getClassName()));
             node.getBoundsInScreen(bounds);
             long area = (long) bounds.width() * bounds.height();
             // Prefer the substantial inner list over a parent that only moves
             // a toolbar or header. Ignore small controls such as spinners.
             boolean hasBackwardAction = supports(node, AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD);
-            if (matchesCurrentList && (node.isScrollable() || hasBackwardAction)
+            if ((node.isScrollable() || hasBackwardAction)
                     && bounds.height() > bounds.width() / 2 && area >= screenArea / 6
                     && ((!bestHasBackwardAction && hasBackwardAction)
                         || (bestHasBackwardAction == hasBackwardAction
@@ -312,6 +341,8 @@ public class TopService extends AccessibilityService {
         return false;
     }
     private boolean supportsGranularScroll(AccessibilityNodeInfo node) {
+        if ((node.getExtras().getInt(COMPAT_BOOLEAN_PROPERTIES, 0)
+                & COMPAT_GRANULAR_SCROLLING) != 0) return true;
         if (android.os.Build.VERSION.SDK_INT < 35) return false;
         try {
             return (Boolean) AccessibilityNodeInfo.class
@@ -319,6 +350,11 @@ public class TopService extends AccessibilityService {
         } catch (ReflectiveOperationException e) {
             return false;
         }
+    }
+    private void logScrollMode(String mode, AccessibilityNodeInfo node) {
+        // Diagnostic metadata only; never log list text or screen content.
+        Log.d("TipTopScroll", mode + (node == null ? ": no target" :
+                ": " + node.getPackageName() + " / " + node.getClassName()));
     }
     private int statusBarHeight() {
         int id = getResources().getIdentifier("status_bar_height", "dimen", "android");
