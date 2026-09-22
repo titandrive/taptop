@@ -85,7 +85,7 @@ public class MainActivity extends Activity {
         toggle(behavior, "Haptic feedback", "A gentle click when you tap the area.", "haptics", true);
         divider(behavior);
         slider(behavior, "Scroll speed", "scroll_speed", 0, 4, 4);
-        addText(behavior, "Touch the screen to stop scrolling. Speed changes apply on your next tap.", 13, muted, false, 0, 4);
+        addText(behavior, "Choose how fast to scroll back to the top.", 13, muted, false, 0, 4);
 
         section("APPEARANCE");
         LinearLayout appearance = card();
@@ -104,6 +104,11 @@ public class MainActivity extends Activity {
         slider(bar, "Width", "width", 40, 240, 100);
         slider(bar, "Height", "height", 24, 80, 36);
         slider(bar, "Top offset", "offset", 0, 80, 8);
+        space(bar, 8);
+        TextView resetSliders = resetButton(bar, "all tap area sliders", "defaults", this::resetBarSliders);
+        resetSliders.setText("Reset all");
+        resetSliders.setBackground(ripple(surface, 14));
+        resetSliders.setLayoutParams(new LinearLayout.LayoutParams(-1, -2));
         divider(bar);
         toggle(bar, "Show tap bar", "Show a visible marker over your tap area.", "enabled", true);
         barAppearance = column();
@@ -111,11 +116,6 @@ public class MainActivity extends Activity {
         barAppearance.setVisibility(prefs.getBoolean("enabled", true) ? View.VISIBLE : View.GONE);
         colorPicker(barAppearance);
         slider(barAppearance, "Opacity", "opacity", 15, 100, 70);
-        space(bar, 8);
-        TextView resetSliders = resetButton(bar, "all tap area sliders", "defaults", this::resetBarSliders);
-        resetSliders.setText("Reset all");
-        resetSliders.setBackground(ripple(surface, 14));
-        resetSliders.setLayoutParams(new LinearLayout.LayoutParams(-1, -2));
 
         TextView footer = addText(content, "Made for a little less scrolling.\nNo internet access. No saved screen content.", 12, muted, false, 24, 0);
         footer.setGravity(Gravity.CENTER);
@@ -249,9 +249,9 @@ public class MainActivity extends Activity {
         String services = Settings.Secure.getString(getContentResolver(), Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);
         String name = new ComponentName(this, TopService.class).flattenToString();
         boolean enabledInSettings = services != null && services.contains(name);
-        status.setText(TopService.connected ? "●  Ready when you are" : enabledInSettings ? "●  Waiting for accessibility" : "●  Let's get you set up");
+        status.setText(TopService.connected ? "●  TipTop is active" : enabledInSettings ? "●  Waiting for accessibility" : "●  Let's get you set up");
         status.setTextColor(TopService.connected ? green : accent);
-        statusDetail.setText(TopService.connected ? "Open an app, find your list, and tap your chosen area."
+        statusDetail.setText(TopService.connected ? "Tap the tap area to scroll to the top."
                 : enabledInSettings ? "Waiting for Android to connect. If this persists, turn TipTop off and on in accessibility settings."
                 : "Enable TipTop in accessibility settings to start scrolling.");
     }
