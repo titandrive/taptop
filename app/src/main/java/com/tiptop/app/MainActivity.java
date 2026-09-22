@@ -45,6 +45,7 @@ public class MainActivity extends Activity {
     private final List<Runnable> refreshBarSliders = new ArrayList<>();
     private final Runnable connectionChanged = this::updateStatus;
     private TextView masterButton;
+    private android.graphics.drawable.Drawable masterIcon;
     private final SharedPreferences.OnSharedPreferenceChangeListener settingChanged = (preferences, key) -> {
         if ("tiptop_enabled".equals(key)) syncMasterButton();
     };
@@ -282,9 +283,35 @@ public class MainActivity extends Activity {
 
     private void buildStatus() {
         LinearLayout panel = card();
-        masterButton = text("", 21, accent, true);
+        masterButton = new TextView(this) {
+            private final android.graphics.Rect inkBounds = new android.graphics.Rect();
+
+            @Override protected void onDraw(Canvas canvas) {
+                String label = getText().toString();
+                Paint paint = getPaint();
+                paint.setColor(getCurrentTextColor());
+                paint.getTextBounds(label, 0, label.length(), inkBounds);
+                float centerY = getPaddingTop()
+                        + (getHeight() - getPaddingTop() - getPaddingBottom()) / 2f;
+                int iconSize = dp(36);
+                int gap = dp(12);
+                float totalWidth = iconSize + gap + paint.measureText(label);
+                float left = (getWidth() - totalWidth) / 2f;
+                if (masterIcon != null) {
+                    canvas.save();
+                    canvas.translate(left, centerY - iconSize / 2f);
+                    masterIcon.draw(canvas);
+                    canvas.restore();
+                }
+                canvas.drawText(label, left + iconSize + gap,
+                        centerY - inkBounds.exactCenterY() + dp(2), paint);
+            }
+        };
+        masterButton.setTextSize(26);
+        masterButton.setTypeface(Typeface.create("sans-serif-black", Typeface.NORMAL));
+        masterButton.setIncludeFontPadding(false);
         masterButton.setGravity(Gravity.CENTER);
-        masterButton.setMinHeight(dp(76));
+        masterButton.setMinHeight(dp(84));
         masterButton.setPadding(dp(16), dp(16), dp(16), dp(16));
         masterButton.setAccessibilityDelegate(buttonDelegate());
         masterButton.setOnClickListener(v -> {
@@ -360,10 +387,17 @@ public class MainActivity extends Activity {
     private void syncMasterButton() {
         if (masterButton == null) return;
         boolean enabled = prefs.getBoolean("tiptop_enabled", true);
-        masterButton.setText(enabled ? "Disable TipTop" : "Enable TipTop");
+        String label = enabled ? "Stop TipTop" : "Start TipTop";
+        android.graphics.drawable.Drawable icon = getDrawable(
+                enabled ? R.drawable.ic_stop : R.drawable.ic_start).mutate();
+        icon.setTint(enabled ? base : accent);
+        icon.setBounds(0, 0, dp(36), dp(36));
+        masterIcon = icon;
+        masterButton.setText(label);
+        masterButton.invalidate();
         masterButton.setTextColor(enabled ? base : accent);
         masterButton.setBackground(ripple(enabled ? accent : surface, 18));
-        masterButton.setContentDescription(enabled ? "Disable TipTop" : "Enable TipTop");
+        masterButton.setContentDescription(label);
         if (android.os.Build.VERSION.SDK_INT >= 30)
             masterButton.setStateDescription(enabled ? "On" : "Off");
         updateStatus();

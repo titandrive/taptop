@@ -2,7 +2,7 @@
 
 ## Lucide Icons
 
-The turtle and rabbit icons in `app/src/main/res/drawable/ic_turtle.xml` and `ic_rabbit.xml` are adapted from [Lucide](https://lucide.dev).
+The turtle, rabbit, play, and square-pause icons in `app/src/main/res/drawable/ic_turtle.xml`, `ic_rabbit.xml`, `ic_start.xml`, and `ic_stop.xml` are adapted from [Lucide](https://lucide.dev).
 
 ISC License
 
