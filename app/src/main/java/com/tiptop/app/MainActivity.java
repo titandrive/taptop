@@ -21,6 +21,9 @@ import android.widget.SeekBar;
 import android.widget.Switch;
 import android.widget.TextView;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class MainActivity extends Activity {
     private static final String[] SPEED_LABELS = {"Slowest", "Slow", "Medium", "Fast", "Maximum"};
     private SharedPreferences prefs;
@@ -28,6 +31,7 @@ public class MainActivity extends Activity {
     private LinearLayout content;
     private ScrollView scroll;
     private BarPreview preview;
+    private final List<Runnable> refreshBarSliders = new ArrayList<>();
     private boolean dark;
     private int base, card, surface, ink, muted, accent, green;
 
@@ -211,12 +215,15 @@ public class MainActivity extends Activity {
             public void onStartTrackingTouch(SeekBar control) {}
             public void onStopTrackingTouch(SeekBar control) {}
         });
-        if (!speed) resetButton(heading, title, format(key, initial), () -> {
-            seek.setProgress(initial - min);
-            prefs.edit().putInt(key, initial).apply();
-            notifyService();
-            if (preview != null) preview.invalidate();
-        });
+        if (!speed) {
+            refreshBarSliders.add(() -> seek.setProgress(prefs.getInt(key, initial) - min));
+            resetButton(heading, title, format(key, initial), () -> {
+                seek.setProgress(initial - min);
+                prefs.edit().putInt(key, initial).apply();
+                notifyService();
+                if (preview != null) preview.invalidate();
+            });
+        }
         parent.addView(seek, new LinearLayout.LayoutParams(-1, dp(48)));
         if (speed) {
             LinearLayout limits = row();
@@ -266,9 +273,10 @@ public class MainActivity extends Activity {
                 .putInt("offset", 8)
                 .putInt("opacity", 70)
                 .apply();
+        // Existing listeners update each value label without saving again.
+        for (Runnable refresh : refreshBarSliders) refresh.run();
+        if (preview != null) preview.invalidate();
         notifyService();
-        // Rebind every control and the preview together, preserving scroll position.
-        recreate();
     }
 
     private TextView resetButton(LinearLayout parent, String title, String defaultValue, Runnable reset) {
