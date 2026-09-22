@@ -401,7 +401,7 @@ public class TopService extends AccessibilityService {
         for (AccessibilityWindowInfo window : all) {
             if (window.getType() != AccessibilityWindowInfo.TYPE_APPLICATION) continue;
             AccessibilityNodeInfo root = window.getRoot();
-            if (root == null || getPackageName().contentEquals(root.getPackageName())) continue;
+            if (root == null) continue;
             if (window.isActive()) { chosen = window; break; }
             if (chosen == null || window.isFocused()) chosen = window;
         }
