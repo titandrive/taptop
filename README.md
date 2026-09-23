@@ -41,6 +41,10 @@ An easy and intuitive way to scroll to the top of any app, with one tap. Just li
 - **Light and dark themes:** Catppuccin Latte and Macchiato. Tap the sun/moon button to switch; hold it to follow the system.
 - **Optional haptics:** feedback when touching the tap zone.
 
+## Disable tap zone
+
+You can disable the tap zone if you would like to use TapTop via intents or shortcuts only.
+
 ## App filtering
 
 Choose where TapTop works.
