@@ -27,6 +27,7 @@ final class ShortcutActions {
             if (enabled == current) return;
             prefs.edit().putBoolean("taptop_enabled", enabled).apply();
             context.sendBroadcast(new Intent(TopService.ACTION_UPDATE).setPackage(context.getPackageName()));
+            if (prefs.getBoolean("haptics", true)) Haptics.click(context);
         } else if (ACTION_SCROLL_TO_TOP.equals(action)) {
             if (!TopService.connected) {
                 Toast.makeText(context, "Enable TapTop in accessibility settings first", Toast.LENGTH_SHORT).show();
@@ -34,6 +35,7 @@ final class ShortcutActions {
                 Toast.makeText(context, "Turn TapTop on first", Toast.LENGTH_SHORT).show();
             } else {
                 context.sendBroadcast(new Intent(TopService.ACTION_SCROLL_TO_TOP).setPackage(context.getPackageName()));
+                if (prefs.getBoolean("haptics", true)) Haptics.click(context);
             }
         }
     }
