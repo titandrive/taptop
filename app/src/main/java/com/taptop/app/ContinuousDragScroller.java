@@ -21,6 +21,10 @@ final class ContinuousDragScroller {
     private boolean finished;
     private boolean inFlight;
     private int completedSegments;
+    private boolean cleanHandoff;
+    private long segmentStarted;
+    private boolean finalStroke;
+    private Runnable boundaryReached;
 
     ContinuousDragScroller(AccessibilityService service, Rect bounds, float density,
             int speed, Listener listener) {
@@ -54,6 +58,20 @@ final class ContinuousDragScroller {
         if (!inFlight && !finished) release();
     }
 
+    void setBoundaryReached(Runnable action) { boundaryReached = action; }
+
+    void approachingTop(int remainingScroll) {
+        // Avoid CANCEL/DOWN resets near a browser's upper scroll boundary.
+        if (singlePointer && remainingScroll >= 0 && remainingScroll <= (endY - startY) * 2)
+            cleanHandoff = true;
+        if (singlePointer && inFlight && remainingScroll >= 0) {
+            long remainingTime = Math.max(0, duration - (SystemClock.uptimeMillis() - segmentStarted));
+            float remainingTravel = (endY - startY) * remainingTime / duration;
+            if (remainingScroll == 0 || remainingScroll + 8 < remainingTravel * .8f)
+                finalStroke = true;
+        }
+    }
+
     void cancelImmediately(float cancelX, float cancelY) {
         cancelImmediately(cancelX, cancelY, null);
     }
@@ -82,6 +100,7 @@ final class ContinuousDragScroller {
     private void dispatchNext() {
         if (finished) return;
         if (stopping) { release(); return; }
+        if (singlePointer && cleanHandoff && heldStroke != null) { release(true); return; }
         GestureDescription.Builder builder = new GestureDescription.Builder();
         if (heldStroke != null && !singlePointer) {
             // The replacement pointer goes down before the old one goes up.
@@ -102,6 +121,8 @@ final class ContinuousDragScroller {
         builder.addStroke(next);
         inFlight = true;
         final long dispatchedAt = SystemClock.uptimeMillis();
+        segmentStarted = dispatchedAt + startTime;
+        finalStroke = false;
         if (!service.dispatchGesture(builder.build(), new AccessibilityService.GestureResultCallback() {
             @Override public void onCompleted(GestureDescription gesture) {
                 if (finished) return;
@@ -112,7 +133,10 @@ final class ContinuousDragScroller {
                     Log.d("TapTopScroll", "drag segments completed=" + completedSegments
                             + "; durationMs=" + duration + "; callbackOverheadMs="
                             + (SystemClock.uptimeMillis() - dispatchedAt - duration - startTime));
-                dispatchNext();
+                if (finalStroke && boundaryReached != null) {
+                    Log.d("TapTopScroll", "cancel final browser stroke without releasing refresh");
+                    boundaryReached.run();
+                } else dispatchNext();
             }
             @Override public void onCancelled(GestureDescription gesture) {
                 inFlight = false;
@@ -125,7 +149,9 @@ final class ContinuousDragScroller {
         }
     }
 
-    private void release() {
+    private void release() { release(false); }
+
+    private void release(boolean continueScrolling) {
         if (finished) return;
         if (heldStroke == null) { finish(false); return; }
         // Briefly hold still before lifting so stopping does not launch a fling.
@@ -134,7 +160,11 @@ final class ContinuousDragScroller {
         heldStroke = null;
         inFlight = true;
         if (!service.dispatchGesture(gesture, new AccessibilityService.GestureResultCallback() {
-            @Override public void onCompleted(GestureDescription ignored) { finish(false); }
+            @Override public void onCompleted(GestureDescription ignored) {
+                if (finished) return;
+                inFlight = false;
+                if (continueScrolling && !stopping) dispatchNext(); else finish(false);
+            }
             @Override public void onCancelled(GestureDescription ignored) { finish(true); }
         }, null)) finish(true);
     }

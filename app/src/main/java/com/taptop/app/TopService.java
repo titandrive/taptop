@@ -61,6 +61,7 @@ public class TopService extends AccessibilityService {
     private boolean consumingStopTouch;
     private long scrollStarted;
     private long lastProgress;
+    private int smallestDragScrollY = Integer.MAX_VALUE;
     private int scrollEvents;
     private long scrollDistance;
     private int scrollRequests;
@@ -124,7 +125,21 @@ public class TopService extends AccessibilityService {
         if (event.getEventType() == AccessibilityEvent.TYPE_VIEW_SCROLLED) {
             AccessibilityNodeInfo source = event.getSource();
             if (!movingList.equals(source)) return;
-            lastProgress = SystemClock.uptimeMillis();
+            if (dragScroller != null && event.getMaxScrollY() > 0)
+                dragScroller.approachingTop(event.getScrollY());
+            // Some browser engines retain ACTION_SCROLL_BACKWARD at the top.
+            // A valid absolute range is stronger evidence than that action flag.
+            if (dragScroller != null && event.getScrollY() == 0 && event.getMaxScrollY() > 0) {
+                cancelDragOnTouch();
+                return;
+            }
+            // Repeated/bouncing events are not progress toward the top.
+            if (dragScroller == null || event.getMaxScrollY() <= 0 || event.getScrollY() < 0
+                    || event.getScrollY() < smallestDragScrollY) {
+                lastProgress = SystemClock.uptimeMillis();
+                if (dragScroller != null && event.getMaxScrollY() > 0 && event.getScrollY() >= 0)
+                    smallestDragScrollY = event.getScrollY();
+            }
             scrollEvents++;
             if (android.os.Build.VERSION.SDK_INT >= 28 && event.getScrollDeltaY() != -1)
                 scrollDistance += Math.abs((long) event.getScrollDeltaY());
@@ -351,6 +366,7 @@ public class TopService extends AccessibilityService {
                 getResources().getDisplayMetrics().heightPixels)
                 || bounds.height() < dp(180)) return;
         movingList = target;
+        smallestDragScrollY = Integer.MAX_VALUE;
         scrollStarted = lastProgress = SystemClock.uptimeMillis();
         scrollEvents = scrollRequests = 0;
         scrollDistance = maxRequestGap = maxActionDuration = 0;
@@ -360,6 +376,7 @@ public class TopService extends AccessibilityService {
                     if (cancelled) lastDragCancellation = SystemClock.uptimeMillis();
                     stopNativeScroll(cancelled ? "drag cancelled" : "drag finished");
                 });
+        dragScroller.setBoundaryReached(this::cancelDragOnTouch);
         logScrollMode("continuous drag speed=" + speed + "; web=" + webContent, target);
         if (bar != null) applyBarAppearance(bar);
         if (bar == null && !showDragTouchMonitor()) {
