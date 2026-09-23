@@ -180,7 +180,8 @@ public class TopService extends AccessibilityService {
     private void showBar() {
         if (windows == null) return;
         if (bar != null) { windows.removeView(bar); bar = null; }
-        if (!prefs.getBoolean("taptop_enabled", true) || !currentAppAllowed()) return;
+        if (!prefs.getBoolean("taptop_enabled", true)
+                || !prefs.getBoolean("tap_zone_enabled", true) || !currentAppAllowed()) return;
         View view = new View(this);
         applyBarAppearance(view);
         view.setContentDescription("Scroll to top");
@@ -361,6 +362,10 @@ public class TopService extends AccessibilityService {
                 });
         logScrollMode("continuous drag speed=" + speed + "; web=" + webContent, target);
         if (bar != null) applyBarAppearance(bar);
+        if (bar == null && !showDragTouchMonitor()) {
+            stopNativeScroll("touch monitor unavailable");
+            return;
+        }
         handler.postDelayed(scrollWatchdog, 250);
         dragScroller.start();
     }
@@ -450,14 +455,51 @@ public class TopService extends AccessibilityService {
     }
 
     private void cancelDragOnTouch() {
-        if (dragScroller == null || bar == null) return;
+        View cancellationTarget = bar != null ? bar : stopRegion;
+        if (dragScroller == null || cancellationTarget == null) return;
         int[] location = new int[2];
-        bar.getLocationOnScreen(location);
+        cancellationTarget.getLocationOnScreen(location);
         // A new gesture cancels pending injected movement immediately. Put its
         // stationary contact on our own bar, where the cancellation timestamp
         // suppresses the click, instead of tapping anything in the target app.
-        dragScroller.cancelImmediately(location[0] + bar.getWidth() / 2f,
-                Math.max(0, location[1] + bar.getHeight() / 2f));
+        boolean temporaryMonitor = cancellationTarget == stopRegion;
+        if (temporaryMonitor) consumingStopTouch = true;
+        dragScroller.cancelImmediately(location[0] + cancellationTarget.getWidth() / 2f,
+                Math.max(0, location[1] + cancellationTarget.getHeight() / 2f),
+                temporaryMonitor ? () -> {
+                    consumingStopTouch = false;
+                    if (stopRegion == cancellationTarget) removeStopRegion();
+                } : null);
+    }
+
+    // Only exists during shortcut-driven drag scrolling when the tap zone is off.
+    // A one-pixel corner window observes outside touches without covering content.
+    private boolean showDragTouchMonitor() {
+        removeStopRegion();
+        View monitor = new View(this);
+        monitor.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        monitor.setOnTouchListener((v, event) -> {
+            if ((event.getActionMasked() == MotionEvent.ACTION_OUTSIDE
+                    || event.getActionMasked() == MotionEvent.ACTION_DOWN)
+                    && event.getDeviceId() != KeyCharacterMap.VIRTUAL_KEYBOARD) {
+                cancelDragOnTouch();
+            }
+            return true;
+        });
+        WindowManager.LayoutParams params = new WindowManager.LayoutParams(1, 1,
+                WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+                        | WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
+                        | WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH,
+                android.graphics.PixelFormat.TRANSLUCENT);
+        params.gravity = Gravity.BOTTOM | Gravity.LEFT;
+        try {
+            windows.addView(monitor, params);
+            stopRegion = monitor;
+            return true;
+        } catch (WindowManager.BadTokenException e) {
+            return false;
+        }
     }
 
     private void showStopRegion() {

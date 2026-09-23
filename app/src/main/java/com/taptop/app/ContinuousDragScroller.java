@@ -55,15 +55,28 @@ final class ContinuousDragScroller {
     }
 
     void cancelImmediately(float cancelX, float cancelY) {
-        if (finished) return;
+        cancelImmediately(cancelX, cancelY, null);
+    }
+
+    void cancelImmediately(float cancelX, float cancelY, Runnable delivered) {
+        if (finished) {
+            if (delivered != null) delivered.run();
+            return;
+        }
         // Latch completion before dispatch: cancellation/completion callbacks
         // from the old segment must never schedule another segment.
         finish(true);
         Path cancel = new Path();
         cancel.moveTo(cancelX, cancelY);
-        service.dispatchGesture(new GestureDescription.Builder()
+        AccessibilityService.GestureResultCallback callback = delivered == null ? null
+                : new AccessibilityService.GestureResultCallback() {
+                    @Override public void onCompleted(GestureDescription gesture) { delivered.run(); }
+                    @Override public void onCancelled(GestureDescription gesture) { delivered.run(); }
+                };
+        boolean accepted = service.dispatchGesture(new GestureDescription.Builder()
                 .addStroke(new GestureDescription.StrokeDescription(cancel, 0, 1))
-                .build(), null, null);
+                .build(), callback, null);
+        if (!accepted && delivered != null) delivered.run();
     }
 
     private void dispatchNext() {

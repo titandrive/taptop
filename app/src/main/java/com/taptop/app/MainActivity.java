@@ -40,6 +40,7 @@ public class MainActivity extends Activity {
     private TextView status, statusDetail, access;
     private LinearLayout content;
     private LinearLayout barAppearance;
+    private LinearLayout tapZoneOptions;
     private ScrollView scroll;
     private BarPreview preview;
     private final List<Runnable> refreshBarSliders = new ArrayList<>();
@@ -94,7 +95,13 @@ public class MainActivity extends Activity {
         buildAppFilter();
 
         section("TAP ZONE");
-        LinearLayout bar = card();
+        LinearLayout tapZoneCard = card();
+        toggle(tapZoneCard, "Enable tap zone", "Turn off the tap zone to use TapTop only through shortcuts or intents.", "tap_zone_enabled", true);
+        tapZoneOptions = column();
+        tapZoneCard.addView(tapZoneOptions, new LinearLayout.LayoutParams(-1, -2));
+        tapZoneOptions.setVisibility(prefs.getBoolean("tap_zone_enabled", true) ? View.VISIBLE : View.GONE);
+        LinearLayout bar = tapZoneOptions;
+        divider(bar);
         addText(bar, "Adjust tap zone", 19, ink, true, 0, 4);
         addText(bar, "Use the dotted outline on your screen to adjust the tap zone. It stays active when the bar is hidden.", 13, muted, false, 0, 16);
         preview = new BarPreview();
@@ -226,7 +233,7 @@ public class MainActivity extends Activity {
         LinearLayout body = column();
         body.setPadding(dp(24), dp(4), dp(24), dp(16));
         addText(body, "How to use TapTop", 17, ink, true, 0, 8);
-        addText(body, "Enable TapTop and its accessibility service to get started.\n\nTap the tap zone to scroll to the top. Touch anywhere on the screen to stop.\n\nAdjust the scroll speed and tap zone in the app. The tap zone still works when the bar is hidden.\n\nUse the sun/moon button to change themes. Hold it to follow your system theme.", 14, muted, false, 0, 16);
+        addText(body, "Enable TapTop and its accessibility service to get started.\n\nTap the tap zone to scroll to the top. Touch anywhere on the screen to stop.\n\nAdjust the scroll speed and tap zone in the app. The tap zone still works when the bar is hidden. Turn off Enable tap zone to use only shortcuts and intents.\n\nUse the sun/moon button to change themes. Hold it to follow your system theme.", 14, muted, false, 0, 16);
         addText(body, "App filtering", 17, ink, true, 0, 8);
         addText(body, "All: works in every app.\nBlacklist: works everywhere except selected apps.\nWhitelist: works only in selected apps. An empty whitelist disables it everywhere.", 14, muted, false, 0, 12);
         addText(body, "Tap Choose blocked apps or Choose allowed apps to edit. Search by name; selected apps appear at the top.\n\nSelect all selects every app, even those hidden by search. Clear deselects everything. Done saves; Cancel discards changes.", 14, muted, false, 0, 12);
@@ -409,7 +416,9 @@ public class MainActivity extends Activity {
         }
         status.setText("●  TapTop is active");
         status.setTextColor(green);
-        statusDetail.setText("Touch the tap zone to scroll to the top.");
+        statusDetail.setText(prefs.getBoolean("tap_zone_enabled", true)
+                ? "Touch the tap zone to scroll to the top."
+                : "Use a shortcut or intent to scroll to the top.");
     }
 
     private void syncMasterButton() {
@@ -459,6 +468,10 @@ public class MainActivity extends Activity {
             if (key.equals("haptics") && checked) Haptics.click(button);
             if (key.equals("enabled") && barAppearance != null)
                 barAppearance.setVisibility(checked ? View.VISIBLE : View.GONE);
+            if (key.equals("tap_zone_enabled")) {
+                if (tapZoneOptions != null) tapZoneOptions.setVisibility(checked ? View.VISIBLE : View.GONE);
+                updateStatus();
+            }
             if (!key.equals("haptics")) notifyService();
             if (preview != null) preview.invalidate();
         });

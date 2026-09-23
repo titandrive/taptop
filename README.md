@@ -35,6 +35,7 @@ An easy and intuitive way to scroll to the top of any app, with one tap. Just li
 ## Customization
 
 - **Five speeds:** Slowest, Slow, Medium, Fast, Fastest.
+- **Shortcuts-only mode:** turn off **Enable tap zone** to remove the touch area while keeping shortcuts and intents available.
 - **Adjustable tap zone:** change its width, height, position, and top offset.
 - **Optional visible bar:** choose a color and opacity, or hide it. The hidden area still works; a dotted outline helps you adjust it inside TapTop.
 - **Light and dark themes:** Catppuccin Latte and Macchiato. Tap the sun/moon button to switch; hold it to follow the system.
