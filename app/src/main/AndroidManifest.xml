@@ -50,14 +50,9 @@
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
-        <receiver android:name=".AutomationReceiver" android:exported="true">
-            <intent-filter>
-                <action android:name="com.taptop.app.action.TOGGLE" />
-                <action android:name="com.taptop.app.action.TURN_ON" />
-                <action android:name="com.taptop.app.action.TURN_OFF" />
-                <action android:name="com.taptop.app.action.SCROLL_TO_TOP" />
-            </intent-filter>
-        </receiver>
+        <!-- Explicit broadcasts use this component. Action-only broadcasts are
+             handled by TopService's registered receiver to avoid duplicate toggles. -->
+        <receiver android:name=".AutomationReceiver" android:exported="true" />
         <service android:name=".TapTopTileService" android:exported="true"
             android:label="TapTop" android:icon="@drawable/ic_tile_taptop"
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">

@@ -78,6 +78,8 @@ Long-press the **TapTop app icon** to see the four actions. Supported launchers 
 
 Edit your notification shade’s Quick Settings tiles and add **TapTop**. Tap the tile to toggle on/off. The tile requires the accessibility service to be connected.
 
+Apps with an action-only broadcast field, such as MT Capsule, can use any action below without a package, class, or extras while TapTop’s accessibility service is running.
+
 ### Tasker and MacroDroid intents
 
 Add a **Send Intent** action to your task or macro, then enter:

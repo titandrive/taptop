@@ -77,6 +77,7 @@ public class TopService extends AccessibilityService {
     private static final int COMPAT_GRANULAR_SCROLLING = 1 << 26;
     private static final String COMPAT_SCROLL_AMOUNT =
             "androidx.core.view.accessibility.action.ARGUMENT_SCROLL_AMOUNT_FLOAT";
+    private final AutomationReceiver automation = new AutomationReceiver();
     private final BroadcastReceiver update = new BroadcastReceiver() {
         @Override public void onReceive(Context context, Intent intent) {
             if (ACTION_UPDATE_APP_FILTER.equals(intent.getAction())) {
@@ -107,6 +108,12 @@ public class TopService extends AccessibilityService {
         filter.addAction(ACTION_SCROLL_TO_TOP);
         filter.addAction(ACTION_UPDATE_APP_FILTER);
         registerReceiver(update, filter, Context.RECEIVER_NOT_EXPORTED);
+        IntentFilter automationFilter = new IntentFilter();
+        automationFilter.addAction(ShortcutActions.ACTION_TOGGLE);
+        automationFilter.addAction(ShortcutActions.ACTION_TURN_ON);
+        automationFilter.addAction(ShortcutActions.ACTION_TURN_OFF);
+        automationFilter.addAction(ShortcutActions.ACTION_SCROLL_TO_TOP);
+        registerReceiver(automation, automationFilter, Context.RECEIVER_EXPORTED);
         showBar();
         setConnected(true);
     }
@@ -187,6 +194,7 @@ public class TopService extends AccessibilityService {
         consumingStopTouch = false;
         stopNativeScroll("service stopped");
         try { unregisterReceiver(update); } catch (IllegalArgumentException ignored) {}
+        try { unregisterReceiver(automation); } catch (IllegalArgumentException ignored) {}
         if (bar != null) windows.removeView(bar);
         bar = null;
         super.onDestroy();
